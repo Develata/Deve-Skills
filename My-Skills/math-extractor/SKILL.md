@@ -35,8 +35,26 @@ The Agent must follow this Chain of Thought (CoT):
 
 ## Usage
 
-To use this skill, execute the python script with the file path. The API keys must be set in the environment variables: `MINERU_API_KEY`, `EXTRACTION_API_KEY`, `EXTRACTION_BASE_URL`.
+To use this skill, execute the python script with the file path.
+
+**Required Environment Variables:**
+*   `EXTRACTION_API_KEY`: API Key for LLM (e.g., OpenAI, DeepSeek).
+*   `EXTRACTION_BASE_URL`: Base URL for LLM API (default: `https://api.openai.com/v1`).
+
+**Optional Environment Variables:**
+*   `MINERU_API_KEY`: Required only for PDF conversion.
+*   `MINERU_BASE_URL`: Base URL for MinerU API (default: `https://api.mineru.com/v1`).
+*   `LLM_MODEL`: Model name to use (default: `gpt-4o`).
 
 ```bash
 python scripts/processor.py <file_path> <output_directory>
 ```
+
+## Features
+
+*   **Robust PDF Conversion**: Uses MinerU for high-quality PDF to Markdown conversion.
+*   **Smart Chunking**: Splits text by paragraphs to avoid breaking math formulas.
+*   **Cost Optimization**: Heuristically filters out non-math chunks to save tokens.
+*   **Math Protection**: Whitelists safe HTML tags to prevent accidental deletion of math inequalities (e.g., `a < b`).
+*   **Encoding Fallback**: Automatically tries UTF-8, GBK, and Latin-1 encodings.
+*   **Retry Logic**: Built-in retries for API calls to handle network instability.
