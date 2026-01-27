@@ -26,18 +26,6 @@ description: 自动化代码模块化重构工具。用于检测、分类和重�
 - 按行数和复杂度对文件分类
 - 一键完成多个文件的重构任务
 
-## 子技能路由
-
-当 `code-shorters` 主 Skill 检测到文件语言后，会自动调用对应的子 Skill 进行重构：
-
-| 检测语言 | 调用的子 Skill | 子 Skill 路径 |
-|-----------|---------------|---------------------|
-| Rust (.rs) | rust-shorter | `code-shorters/rust-shorter/` |
-| Python (.py) | python-shorter | `code-shorters/python-shorter/` |
-| C++ (.cpp/.h/.hpp) | cpp-shorter | `code-shorters/cpp-shorter/` |
-| JavaScript/TypeScript (.js/.ts/.jsx/.tsx) | js-shorter | `code-shorters/js-shorter/` |
-| Markdown (.md) | md-shorter | `code-shorters/md-shorter/` |
-
 ## 工作流程
 
 ### 步骤 1：Git 环境检查
@@ -124,108 +112,51 @@ Priority Score = (行数 × 0.4) + (复杂度 × 0.3) + (嵌套深度 × 0.2) + 
 按照优先级顺序，自动调用对应的语言专项子skill：
 
 ```bash
-# 批处理模式（方案 B：自动串行）
+# 批处理模式（方案 B）
 python scripts/batch_refactor.py
 ```
 
-## 子技能目录结构
+## 子技能路由
 
-所有子 Skills 都在 `code-shorters` 目录下的独立文件夹中：
+当 `code-shorters` 主 Skill 调用此 Skill 时：
 
-```
-code-shorters/
-├── SKILL.md                    # 主调度器文档
-├── scripts/                    # 共享工具脚本
-│   ├── main_analyzer.py         # 主入口
-│   ├── git_checker.py           # Git 环境检查
-│   ├── language_detector.py        # 语言检测
-│   ├── line_counter.py            # 行数统计
-│   ├── complexity_detector.py      # 复杂度检测
-│   ├── report_generator.py         # 报告生成
-│   └── batch_refactor.py          # 批处理调度
-└── references/                  # 参考文档
-    ├── language_patterns.md         # 语言检测模式
-    └── complexity_scoring.md       # 复杂度评分标准
-```
+| 检测到的语言 | 调用的子 Skill | 子 Skill 路径 |
+|--------------|---------------|--------------|
+| Rust (.rs) | rust-shorter | `code-shorters/rust-shorter/` |
+| Python (.py) | python-shorter | `code-shorters/python-shorter/` |
+| C++ (.cpp/.h) | cpp-shorter | `code-shorters/cpp-shorter/` |
+| JS/TS (.js/.ts) | js-shorter | `code-shorters/js-shorter/` |
+| Markdown (.md) | md-shorter | `code-shorters/md-shorter/` |
 
----
+## 工具说明
 
-## 子 Skills（各语言专项重构）
+### git_checker.py
 
-### rust-shorter (Rust 代码模块化)
+Git 环境检查工具。
 
-**路径**: `code-shorters/rust-shorter/`
+### language_detector.py
 
-**职责**：Rust 代码模块化（3 种策略：功能模块/数据流/依赖层级）
+多层级语言检测工具。
 
-**详细文档**: 见 `rust-shorter/SKILL.md`
+### line_counter.py
 
-### python-shorter (Python 代码模块化)
+精确的行数统计工具（包含注释）。
 
-**路径**: `code-shorters/python-shorter/`
+### complexity_detector.py
 
-**职责**：Python 代码模块化（3 种策略：类模块/功能分组/数据流）
+多语言复杂度检测工具。
 
-**详细文档**: 见 `python-shorter/SKILL.md`
+### report_generator.py
 
-### cpp-shorter (C++ 代码模块化)
+可视化报告生成器。
 
-**路径**: `code-shorters/cpp-shorter/`
+### batch_refactor.py
 
-**职责**：C++ 代码模块化（3 种策略：头文件分离/命名空间/模板类）
+批处理重构调度器。
 
-**详细文档**: 见 `cpp-shorter/SKILL.md`
+### main_analyzer.py
 
-### js-shorter (JavaScript/TypeScript 代码模块化)
-
-**路径**: `code-shorters/js-shorter/`
-
-**职责**：JavaScript/TypeScript 代码模块化（3 种策略：组件拆分/路由/状态管理）
-
-**详细文档**: 见 `js-shorter/SKILL.md`
-
-### md-shorter (Markdown 文档模块化)
-
-**路径**: `code-shorters/md-shorter/`
-
-**职责**：Markdown 文档模块化（3 种策略：章节拆分/主题拆分/内容类型）
-
-**详细文档**: 见 `md-shorter/SKILL.md`
-
-## 使用示例
-
-### 基本用法（扫描当前目录）
-
-```bash
-# 扫描当前目录
-python scripts/main_analyzer.py
-```
-
-**输出**：
-- 📊 扫描摘要（总文件数、语言分布、警告/关键文件）
-- 📋 分类报告（critical_files + warning_files）
-- 📄 生成 JSON 分析报告：`reports/analysis_YYYYMMDD_HHMMSS.json`
-
-### 指定路径扫描
-
-```bash
-# 扫描 src/ 目录
-python scripts/main_analyzer.py --path src
-```
-
-### 递归扫描子目录
-
-```bash
-# 递归扫描所有子目录
-python scripts/main_analyzer.py --recursive
-```
-
-### 一键批量重构
-
-```bash
-# 自动执行所有 critical_files 的重构
-python scripts/batch_refactor.py
-```
+主入口脚本。
 
 ## 配置选项
 
@@ -234,94 +165,34 @@ python scripts/batch_refactor.py
 ```bash
 --path <directory>        # 指定扫描路径（默认当前目录）
 --recursive              # 递归扫描子目录
---exclude <pattern>      # 排除文件/目录（如 --exclude target/）
---include-only <lang>    # 只扫描指定语言（如 --include-only rust）
+--exclude <pattern>      # 排除文件/目录
+--include-only <lang>    # 只扫描指定语言
 ```
 
 ### 复杂度配置
 
 ```bash
---no-complexity          # 跳过复杂度检测（仅按行数排序）
+--no-complexity          # 跳过复杂度检测
 --linter-path <path>     # 指定 lint 工具路径
---complexity-weight <float> # 自定义复杂度权重（默认 0.3）
 ```
 
 ### 输出配置
 
 ```bash
---output-dir <directory>  # 输出报告目录（默认 ./reports）
+--output-dir <directory>  # 输出报告目录
 --report-format <format>  # 报告格式：markdown 或 html
 ```
-
-## 工具说明
-
-### main_analyzer.py
-
-主入口脚本，整合所有功能：Git 检查、扫描、统计、分类。
-
-### git_checker.py
-
-Git 环境检查工具，确保重构安全。
-
-### language_detector.py
-
-多层级语言检测工具（后缀名 + 内容特征）。
-
-### line_counter.py
-
-精确的行数统计工具（包含注释）。
-
-### complexity_detector.py
-
-多语言复杂度检测工具（集成 clippy/pylint/cpplint/eslint）。
-
-### report_generator.py
-
-可视化报告生成器（支持 Markdown 和 HTML 格式）。
-
-### batch_refactor.py
-
-批处理重构调度器（方案 B：自动串行调用子 Skill）。
-
-## 参考文档
-
-参见 `references/` 目录：
-- `language_patterns.md`: 各语言检测规则详情
-- `complexity_scoring.md`: 复杂度评分算法说明
-
-## Git 策略
-
-所有 Skills 都遵循以下 Git 策略：
-
-1. **重构前检查**：主 Skill 已验证 Git 环境（无未提交修改）
-2. **原地修改**：直接修改原文件
-3. **自动提交**：重构完成后自动生成 commit message
-4. **版本管理**：Git 自动记录所有变更历史
-
----
 
 ## 常见问题
 
 ### Q: 如何处理未安装 lint 工具的情况？
 
-**A:** 如果检测到未安装对应的 lint 工具：
-1. 显示警告信息：`⚠️  Lint 工具未安装，跳过复杂度计算`
-2. 复杂度设为 0
-3. 仅按行数排序（行数 × 0.4 权重）
-4. 继续执行重构任务
+**A:** 显示警告信息并继续执行，仅按行数排序。
 
 ### Q: 如何确保重构后的代码能编译？
 
-**A:** 每个子skill都会在重构后自动验证：
-- Rust: 调用 `cargo check` 或集成 `rust-auto-fixer` skill
-- Python: 执行语法检查 `python -m py_compile`
-- C++: 执行 `g++ --syntax-only`
-- JavaScript: 执行 ESLint 验证
+**A:** 每个子skill都会在重构后自动验证。
 
 ### Q: Git 策略如何保证版本安全？
 
-**A:**
-1. 重构前检查是否有未提交修改（有则退出）
-2. 重构后自动生成 commit message
-3. Git 历史记录所有变更
-4. 可以随时使用 `git revert` 回滚
+**A:** 重构前检查 Git 状态，重构后自动提交。
