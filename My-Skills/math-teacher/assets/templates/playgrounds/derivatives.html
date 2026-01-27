@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Derivative Visualizer</title>
+    <style>
+        body { font-family: sans-serif; background: #1a1a1a; color: #eee; margin: 0; padding: 20px; text-align: center; }
+        canvas { background: #222; border: 1px solid #444; border-radius: 4px; cursor: crosshair; }
+        .info { font-size: 1.2em; margin: 15px; font-family: monospace; }
+        .highlight { color: #00ff88; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Calculus: Tangent Lines & Derivatives</h1>
+    <div class="info">Function: <span class="highlight">f(x) = sin(x) + 0.5x</span></div>
+    <div class="info">Move mouse over graph to see slope</div>
+    <canvas id="c" width="800" height="500"></canvas>
+    <div class="info" id="status">x: 0, Slope: ?</div>
+
+    <script>
+        const canvas = document.getElementById('c');
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+        const scaleX = 40; 
+        const scaleY = 40;
+
+        function f(x) { return Math.sin(x) + 0.5 * x; }
+        // Numerical derivative
+        function df(x) { 
+            const h = 0.001;
+            return (f(x+h) - f(x)) / h; 
+        }
+
+        function toScreen(x, y) {
+            return {
+                px: w/2 + x * scaleX,
+                py: h/2 - y * scaleY
+            };
+        }
+
+        function fromScreen(px, py) {
+            return {
+                x: (px - w/2) / scaleX,
+                y: (h/2 - py) / scaleY
+            };
+        }
+
+        function draw(mouseX) {
+            ctx.clearRect(0,0,w,h);
+            
+            // Axes
+            ctx.strokeStyle = '#444';
+            ctx.beginPath();
+            ctx.moveTo(0, h/2); ctx.lineTo(w, h/2);
+            ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h);
+            ctx.stroke();
+
+            // Function
+            ctx.strokeStyle = '#00bbff';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            for(let px=0; px<w; px+=2) {
+                const x = (px - w/2) / scaleX;
+                const y = f(x);
+                const py = h/2 - y * scaleY;
+                if(px===0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.stroke();
+
+            if (mouseX !== null) {
+                const x0 = (mouseX - w/2) / scaleX;
+                const y0 = f(x0);
+                const slope = df(x0);
+                const { px: px0, py: py0 } = toScreen(x0, y0);
+
+                // Tangent Line (y - y0) = m(x - x0) => y = m(x-x0) + y0
+                ctx.strokeStyle = '#00ff88';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                // Draw a segment of length 200 centered at point
+                const deltaX = 3; // length in graph units
+                const pt1 = toScreen(x0 - deltaX, slope * (-deltaX) + y0);
+                const pt2 = toScreen(x0 + deltaX, slope * (deltaX) + y0);
+                ctx.moveTo(pt1.px, pt1.py);
+                ctx.lineTo(pt2.px, pt2.py);
+                ctx.stroke();
+
+                // Point
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(px0, py0, 5, 0, Math.PI*2);
+                ctx.fill();
+
+                document.getElementById('status').innerText = 
+                    `x: ${x0.toFixed(2)}, f(x): ${y0.toFixed(2)}, Slope f'(x): ${slope.toFixed(2)}`;
+            }
+        }
+
+        canvas.addEventListener('mousemove', e => {
+            const rect = canvas.getBoundingClientRect();
+            draw(e.clientX - rect.left);
+        });
+
+        draw(null);
+    </script>
+</body>
+</html>

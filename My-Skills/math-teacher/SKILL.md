@@ -287,28 +287,28 @@ All included in `/references`:
 All in `/scripts`:
 - **generate_playground.sh** - Create interactive math playground
 - **generate_game.sh** - Build gamified math challenge
-- **generate_quiz.sh** - Create adaptive quiz system
 
 ## Implementation Approach
 
-**IMPORTANT:** When this skill is invoked, use the Bash tool to execute the appropriate script.
+**IMPORTANT:** When this skill is invoked, use the Bash tool to execute the appropriate script with command-line arguments. Do NOT rely on interactive prompts.
 
 ### How to use the scripts:
 
 1. **For general math games/challenges:** Use `generate_game.sh`
    ```bash
-   bash /Users/jamesrochabrun/Desktop/skills/skills/math-teacher/scripts/generate_game.sh
+   bash scripts/generate_game.sh --type "Speed Challenge" --topic "Mental Math" --output "math-game.html"
    ```
 
 2. **For interactive playgrounds:** Use `generate_playground.sh`
    ```bash
-   bash /Users/jamesrochabrun/Desktop/skills/skills/math-teacher/scripts/generate_playground.sh
+   bash scripts/generate_playground.sh --topic "Fractions" --output "fractions.html"
    ```
-
-3. **For quizzes:** Use `generate_quiz.sh` (if it exists)
-   ```bash
-   bash /Users/jamesrochabrun/Desktop/skills/skills/math-teacher/scripts/generate_quiz.sh
-   ```
+   
+   Available Topics for Playground:
+   - Fractions (Elementary)
+   - Quadratic Functions (High School)
+   - Derivatives (Advanced)
+   - [Generic] (Any other topic uses a generic template)
 
 **DO NOT** try to invoke these scripts automatically when the skill loads - this causes bash security errors. Always use the Bash tool explicitly to run them.
 

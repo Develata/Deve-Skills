@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Quadratic Explorer</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #2c3e50; color: white; text-align: center; }
+        .container { display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        canvas { background: white; border-radius: 8px; margin: 20px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .controls { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; width: 80%; max-width: 600px; }
+        .slider-group { margin: 15px 0; display: flex; align-items: center; justify-content: space-between; }
+        label { font-size: 1.2em; width: 50px; }
+        input[type=range] { flex-grow: 1; margin: 0 15px; }
+        .equation { font-size: 2em; margin: 20px; font-family: monospace; color: #f1c40f; }
+        .info { margin-top: 10px; color: #bdc3c7; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📉 Quadratic Function Explorer</h1>
+        <div class="equation" id="eqDisplay">y = 1x² + 0x + 0</div>
+        
+        <canvas id="graph" width="600" height="400"></canvas>
+        
+        <div class="controls">
+            <div class="slider-group">
+                <label>a = <span id="aVal">1</span></label>
+                <input type="range" id="a" min="-5" max="5" step="0.1" value="1">
+            </div>
+            <div class="slider-group">
+                <label>b = <span id="bVal">0</span></label>
+                <input type="range" id="b" min="-10" max="10" step="0.5" value="0">
+            </div>
+            <div class="slider-group">
+                <label>c = <span id="cVal">0</span></label>
+                <input type="range" id="c" min="-10" max="10" step="0.5" value="0">
+            </div>
+            <div class="info">Drag sliders to change coefficients</div>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('graph');
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+        const scale = 20; // pixels per unit
+
+        function f(x, a, b, c) { return a*x*x + b*x + c; }
+
+        function draw() {
+            const a = parseFloat(document.getElementById('a').value);
+            const b = parseFloat(document.getElementById('b').value);
+            const c = parseFloat(document.getElementById('c').value);
+
+            document.getElementById('aVal').textContent = a;
+            document.getElementById('bVal').textContent = b;
+            document.getElementById('cVal').textContent = c;
+            
+            const eqStr = `y = ${a}x² ${b >= 0 ? '+' : ''}${b}x ${c >= 0 ? '+' : ''}${c}`;
+            document.getElementById('eqDisplay').textContent = eqStr;
+
+            // Clear
+            ctx.clearRect(0, 0, w, h);
+            
+            // Draw Axes
+            ctx.beginPath();
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 1;
+            // X axis
+            ctx.moveTo(0, h/2); ctx.lineTo(w, h/2);
+            // Y axis
+            ctx.moveTo(w/2, 0); ctx.lineTo(w/2, h);
+            ctx.stroke();
+
+            // Draw Grid
+            ctx.strokeStyle = '#eee';
+            ctx.beginPath();
+            for(let i=0; i<w; i+=scale) { ctx.moveTo(i,0); ctx.lineTo(i,h); }
+            for(let i=0; i<h; i+=scale) { ctx.moveTo(0,i); ctx.lineTo(w,i); }
+            ctx.stroke();
+
+            // Draw Function
+            ctx.beginPath();
+            ctx.strokeStyle = '#e74c3c';
+            ctx.lineWidth = 3;
+            
+            let first = true;
+            for (let px = 0; px < w; px++) {
+                // Convert pixel x to graph x
+                const x = (px - w/2) / scale;
+                const y = f(x, a, b, c);
+                
+                // Convert graph y to pixel y
+                const py = h/2 - (y * scale);
+                
+                if (first) { ctx.moveTo(px, py); first = false; }
+                else { ctx.lineTo(px, py); }
+            }
+            ctx.stroke();
+        }
+
+        document.getElementById('a').addEventListener('input', draw);
+        document.getElementById('b').addEventListener('input', draw);
+        document.getElementById('c').addEventListener('input', draw);
+        draw();
+    </script>
+</body>
+</html>
