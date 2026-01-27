@@ -2,20 +2,20 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Derivative Visualizer</title>
+    <title>导数可视化</title>
     <style>
-        body { font-family: sans-serif; background: #1a1a1a; color: #eee; margin: 0; padding: 20px; text-align: center; }
+        body { font-family: 'Microsoft YaHei', sans-serif; background: #1a1a1a; color: #eee; margin: 0; padding: 20px; text-align: center; }
         canvas { background: #222; border: 1px solid #444; border-radius: 4px; cursor: crosshair; }
         .info { font-size: 1.2em; margin: 15px; font-family: monospace; }
         .highlight { color: #00ff88; font-weight: bold; }
     </style>
 </head>
 <body>
-    <h1>Calculus: Tangent Lines & Derivatives</h1>
-    <div class="info">Function: <span class="highlight">f(x) = sin(x) + 0.5x</span></div>
-    <div class="info">Move mouse over graph to see slope</div>
+    <h1>微积分: 切线与导数</h1>
+    <div class="info">函数: <span class="highlight">f(x) = sin(x) + 0.5x</span></div>
+    <div class="info">移动鼠标查看图像上任意一点的斜率</div>
     <canvas id="c" width="800" height="500"></canvas>
-    <div class="info" id="status">x: 0, Slope: ?</div>
+    <div class="info" id="status">x: 0, 斜率: ?</div>
 
     <script>
         const canvas = document.getElementById('c');

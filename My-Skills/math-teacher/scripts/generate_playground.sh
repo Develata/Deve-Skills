@@ -3,7 +3,7 @@
 set -e
 
 # Defaults
-TOPIC="Fractions"
+TOPIC="分数"
 OUTPUT_FILE="math-playground.html"
 OUTPUT_DIR="./math-playgrounds"
 
@@ -25,9 +25,9 @@ OUTPUT_PATH="$OUTPUT_DIR/$OUTPUT_FILE"
 
 # Select Template
 case $TOPIC in
-    "Fractions") TEMPLATE_FILE="fractions.html" ;;
-    "Quadratic Functions") TEMPLATE_FILE="quadratic.html" ;;
-    "Derivatives") TEMPLATE_FILE="derivatives.html" ;;
+    "Fractions"|"分数") TEMPLATE_FILE="fractions.html" ;;
+    "Quadratic Functions"|"二次函数") TEMPLATE_FILE="quadratic.html" ;;
+    "Derivatives"|"导数") TEMPLATE_FILE="derivatives.html" ;;
     *) TEMPLATE_FILE="generic.html" ;;
 esac
 

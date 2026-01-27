@@ -2,9 +2,9 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Fraction Visualizer</title>
+    <title>分数可视化</title>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #f0f8ff; color: #333; }
+        body { font-family: 'Microsoft YaHei', sans-serif; text-align: center; background: #f0f8ff; color: #333; }
         .container { max-width: 800px; margin: 0 auto; padding: 20px; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
         canvas { border: 2px solid #333; border-radius: 50%; margin: 20px; background: white; }
         .controls { margin: 20px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
@@ -16,19 +16,19 @@
 </head>
 <body>
     <div class="container">
-        <h1>🍕 Fraction Pizza Party</h1>
+        <h1>🍕 分数披萨派对</h1>
         <div class="fraction-display">
             <span id="numDisplay" class="numerator">1</span>
             <span id="denDisplay" class="denominator">2</span>
         </div>
         <canvas id="pizzaCanvas" width="300" height="300"></canvas>
         <div class="controls">
-            <label>Numerator (Slices to Eat): <span id="numVal">1</span></label>
+            <label>分子 (吃的片数): <span id="numVal">1</span></label>
             <input type="range" id="numerator" min="0" max="12" value="1">
-            <label>Denominator (Total Slices): <span id="denVal">2</span></label>
+            <label>分母 (总片数): <span id="denVal">2</span></label>
             <input type="range" id="denominator" min="1" max="12" value="2">
         </div>
-        <p>Adjust the sliders to see how the fraction changes!</p>
+        <p>拖动滑块观察分数的变化！</p>
     </div>
     <script>
         const canvas = document.getElementById('pizzaCanvas');

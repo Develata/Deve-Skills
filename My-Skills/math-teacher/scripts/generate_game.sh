@@ -3,8 +3,8 @@
 set -e
 
 # Default Values
-GAME_TYPE="Speed Challenge (Time Attack)"
-TOPIC="Mental Math"
+GAME_TYPE="急速挑战"
+TOPIC="心算"
 OUTPUT_FILE="math-game.html"
 OUTPUT_DIR="./math-games"
 

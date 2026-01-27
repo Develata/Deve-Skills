@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Math Game: {{TOPIC}}</title>
+    <title>数学游戏: {{TOPIC}}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: 'Arial Black', sans-serif;
+      font-family: 'Microsoft YaHei', 'SimHei', sans-serif;
       background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
       min-height: 100vh;
       display: flex;
@@ -127,20 +127,20 @@
 </head>
 <body>
   <div class="game-container">
-    <h1>🎯 Math Challenge</h1>
+    <h1>🎯 数学大挑战</h1>
     <div class="subtitle">{{GAME_TYPE}} - {{TOPIC}}</div>
 
     <div class="stats">
       <div class="stat-box">
-        <div>Score</div>
+        <div>分数</div>
         <div id="score">0</div>
       </div>
       <div class="stat-box">
-        <div>Streak</div>
+        <div>连胜</div>
         <div id="streak">0</div>
       </div>
       <div class="stat-box">
-        <div>Level</div>
+        <div>等级</div>
         <div id="level">1</div>
       </div>
     </div>
@@ -150,17 +150,17 @@
       <div class="progress-bar">
         <div class="progress-fill" id="progress"></div>
       </div>
-      <div class="problem" id="problem">Loading...</div>
-      <input type="number" class="answer-input" id="answer" placeholder="Your answer...">
-      <button class="button" onclick="checkAnswer()">Submit ✓</button>
+      <div class="problem" id="problem">加载中...</div>
+      <input type="number" class="answer-input" id="answer" placeholder="输入你的答案...">
+      <button class="button" onclick="checkAnswer()">提交 ✓</button>
       <div class="feedback" id="feedback"></div>
     </div>
 
     <div class="game-over" id="gameOver">
-      <h2>🎉 Game Over!</h2>
+      <h2>🎉 游戏结束!</h2>
       <div class="final-score" id="finalScore">0</div>
       <p id="rating"></p>
-      <button class="button" onclick="restartGame()">Play Again 🔄</button>
+      <button class="button" onclick="restartGame()">再玩一次 🔄</button>
     </div>
   </div>
 
@@ -186,10 +186,10 @@
       // Determine operator based on topic if possible, otherwise random
       let op = operators[Math.floor(Math.random() * operators.length)];
       
-      if (topic.includes("Multiplication")) op = '×';
-      if (topic.includes("Division")) op = '÷';
-      if (topic.includes("Addition")) op = '+';
-      if (topic.includes("Subtraction")) op = '-';
+      if (topic.includes("乘法") || topic.includes("Multiplication")) op = '×';
+      if (topic.includes("除法") || topic.includes("Division")) op = '÷';
+      if (topic.includes("加法") || topic.includes("Addition")) op = '+';
+      if (topic.includes("减法") || topic.includes("Subtraction")) op = '-';
 
       let num1 = Math.floor(Math.random() * range) + 1;
       let num2 = Math.floor(Math.random() * range) + 1;
@@ -227,10 +227,10 @@
         const points = 10 * (1 + streak * 0.1);
         score += Math.floor(points);
 
-        feedback.innerHTML = `<span class="correct">✓ Correct! +${Math.floor(points)} points</span>`;
+        feedback.innerHTML = `<span class="correct">✓ 回答正确! +${Math.floor(points)} 分</span>`;
 
         if (streak % 5 === 0) {
-          showAchievement(`🔥 ${streak} Streak!`);
+          showAchievement(`🔥 ${streak} 连胜!`);
           level++;
           document.getElementById('level').textContent = level;
         }
@@ -239,7 +239,7 @@
         setTimeout(generateProblem, 500);
       } else {
         streak = 0;
-        feedback.innerHTML = `<span class="incorrect">✗ Incorrect! Answer: ${currentProblem.answer}</span>`;
+        feedback.innerHTML = `<span class="incorrect">✗ 错误! 正确答案: ${currentProblem.answer}</span>`;
         updateStats();
         setTimeout(() => {
           feedback.innerHTML = '';
@@ -283,11 +283,11 @@
       document.getElementById('finalScore').textContent = score;
 
       let rating;
-      if (score >= 500) rating = '🏆 Math Master!';
-      else if (score >= 300) rating = '⭐ Excellent!';
-      else if (score >= 200) rating = '👍 Great job!';
-      else if (score >= 100) rating = '✓ Good effort!';
-      else rating = '💪 Keep practicing!';
+      if (score >= 500) rating = '🏆 数学大师!';
+      else if (score >= 300) rating = '⭐ 太棒了!';
+      else if (score >= 200) rating = '👍 做的不错!';
+      else if (score >= 100) rating = '✓ 继续加油!';
+      else rating = '💪 多加练习!';
 
       document.getElementById('rating').textContent = rating;
     }
