@@ -6,13 +6,20 @@
     <style>
         body { font-family: 'Microsoft YaHei', sans-serif; background: #2c3e50; color: white; text-align: center; }
         .container { display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        canvas { background: white; border-radius: 8px; margin: 20px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
-        .controls { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; width: 80%; max-width: 600px; }
-        .slider-group { margin: 15px 0; display: flex; align-items: center; justify-content: space-between; }
-        label { font-size: 1.2em; width: 50px; }
-        input[type=range] { flex-grow: 1; margin: 0 15px; }
-        .equation { font-size: 2em; margin: 20px; font-family: monospace; color: #f1c40f; }
-        .info { margin-top: 10px; color: #bdc3c7; }
+        canvas { background: white; border-radius: 8px; margin: 20px; box-shadow: 0 0 20px rgba(0,0,0,0.5); width: 100%; max-width: 600px; height: auto; aspect-ratio: 3/2; }
+        .controls { background: rgba(255,255,255,0.1); padding: 20px; border-radius: 15px; width: 90%; max-width: 600px; }
+        .slider-group { margin: 15px 0; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+        label { font-size: 1.2em; width: 60px; text-align: left; }
+        input[type=range] { flex-grow: 1; margin: 0 10px; min-width: 150px; }
+        .equation { font-size: clamp(1.5em, 4vw, 2em); margin: 20px; font-family: monospace; color: #f1c40f; word-break: break-all; }
+        .info { margin-top: 10px; color: #bdc3c7; font-size: 0.9em; }
+        
+        @media (max-width: 480px) {
+            h1 { font-size: 1.5em; }
+            .container { padding: 10px; }
+            .controls { padding: 15px; }
+            .slider-group { margin: 10px 0; }
+        }
     </style>
 </head>
 <body>

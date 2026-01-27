@@ -5,13 +5,17 @@
     <title>分数可视化</title>
     <style>
         body { font-family: 'Microsoft YaHei', sans-serif; text-align: center; background: #f0f8ff; color: #333; }
-        .container { max-width: 800px; margin: 0 auto; padding: 20px; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
-        canvas { border: 2px solid #333; border-radius: 50%; margin: 20px; background: white; }
-        .controls { margin: 20px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
-        input[type=range] { width: 300px; }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 95%; }
+        canvas { border: 2px solid #333; border-radius: 50%; margin: 20px; background: white; max-width: 100%; height: auto; }
+        .controls { margin: 20px; display: flex; flex-direction: column; gap: 15px; align-items: center; width: 100%; }
+        input[type=range] { width: 100%; max-width: 300px; }
         .fraction-display { font-size: 3em; margin: 20px; font-weight: bold; color: #4a90e2; }
-        .numerator { border-bottom: 3px solid #4a90e2; padding-bottom: 5px; display: block; }
-        .denominator { padding-top: 5px; display: block; }
+        
+        @media (max-width: 480px) {
+            h1 { font-size: 1.5em; }
+            .fraction-display { font-size: 2em; }
+            .container { padding: 15px; }
+        }
     </style>
 </head>
 <body>

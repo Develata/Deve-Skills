@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>数学测验: {{TOPIC}}</title>
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --background-gradient: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            --card-bg: white;
+            --text-color: #333;
+            --border-radius: 20px;
+        }
+        body { font-family: 'Microsoft YaHei', sans-serif; background: var(--background-gradient); color: var(--text-color); padding: 20px; min-height: 100vh; display: flex; justify-content: center; align-items: center; }
+        .quiz-container { background: var(--card-bg); padding: 40px; border-radius: var(--border-radius); max-width: 600px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.3); text-align: center; }
+        h1 { color: var(--secondary-color); margin-bottom: 20px; }
+        .question-box { font-size: 1.5em; margin: 30px 0; font-weight: bold; }
+        .options { display: grid; gap: 15px; }
+        .option-btn {
+            background: #f0f2f5; border: 2px solid #ddd; padding: 15px; border-radius: 10px; cursor: pointer; font-size: 1.1em; transition: all 0.2s;
+        }
+        .option-btn:hover { background: #e1e4e8; border-color: var(--primary-color); }
+        .option-btn.correct { background: #d4edda; border-color: #28a745; color: #155724; }
+        .option-btn.wrong { background: #f8d7da; border-color: #dc3545; color: #721c24; }
+        .score-display { font-size: 1.2em; margin-bottom: 20px; color: #666; }
+        .result-screen { display: none; }
+        .final-score { font-size: 3em; color: var(--primary-color); margin: 20px 0; }
+        button.restart-btn {
+            background: var(--background-gradient); color: white; border: none; padding: 15px 30px; border-radius: 10px; font-size: 1.2em; cursor: pointer; margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="quiz-container">
+        <div id="quiz-screen">
+            <h1>📝 {{TOPIC}} 小测验</h1>
+            <div class="score-display">题目 <span id="current-q">1</span> / <span id="total-q">5</span> | 得分: <span id="score">0</span></div>
+            <div class="question-box" id="question">加载中...</div>
+            <div class="options" id="options"></div>
+        </div>
+        
+        <div id="result-screen" class="result-screen">
+            <h1>🎉 测验完成!</h1>
+            <p>你的最终得分是</p>
+            <div class="final-score" id="final-score">0</div>
+            <div id="feedback-msg"></div>
+            <button class="restart-btn" onclick="location.reload()">再试一次</button>
+        </div>
+    </div>
+
+    <script>
+        // Quiz Data - Injected by script
+        const quizData = {{QUIZ_DATA}};
+
+        let currentQIndex = 0;
+        let score = 0;
+        const totalQ = quizData.length;
+
+        function loadQuestion() {
+            const q = quizData[currentQIndex];
+            document.getElementById('question').textContent = q.q;
+            document.getElementById('current-q').textContent = currentQIndex + 1;
+            document.getElementById('total-q').textContent = totalQ;
+            
+            const optionsDiv = document.getElementById('options');
+            optionsDiv.innerHTML = '';
+            
+            q.options.forEach((opt, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'option-btn';
+                btn.textContent = opt;
+                btn.onclick = () => checkAnswer(index, btn);
+                optionsDiv.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selectedIndex, btn) {
+            const correctIndex = quizData[currentQIndex].a;
+            const buttons = document.querySelectorAll('.option-btn');
+            
+            // Disable all buttons
+            buttons.forEach(b => b.disabled = true);
+
+            if (selectedIndex === correctIndex) {
+                btn.classList.add('correct');
+                score += 20;
+                document.getElementById('score').textContent = score;
+            } else {
+                btn.classList.add('wrong');
+                buttons[correctIndex].classList.add('correct');
+            }
+
+            setTimeout(() => {
+                currentQIndex++;
+                if (currentQIndex < totalQ) {
+                    loadQuestion();
+                } else {
+                    showResult();
+                }
+            }, 1500);
+        }
+
+        function showResult() {
+            document.getElementById('quiz-screen').style.display = 'none';
+            document.getElementById('result-screen').style.display = 'block';
+            document.getElementById('final-score').textContent = score;
+            
+            let msg = "";
+            if (score === 100) msg = "🏆 完美! 你是数学天才!";
+            else if (score >= 80) msg = "⭐ 非常棒!";
+            else if (score >= 60) msg = "👍 及格了, 继续加油!";
+            else msg = "💪 再接再厉!";
+            document.getElementById('feedback-msg').textContent = msg;
+        }
+
+        // Start
+        loadQuestion();
+    </script>
+</body>
+</html>

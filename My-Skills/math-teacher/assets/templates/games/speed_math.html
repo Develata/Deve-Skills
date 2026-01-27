@@ -322,8 +322,28 @@
     });
 
     // Initialize
+    loadProgress();
     generateProblem();
     startTimer();
+
+    function saveProgress() {
+      const data = {
+        highScore: Math.max(score, localStorage.getItem('mathGame_highScore') || 0),
+        level: level,
+        totalSolved: (parseInt(localStorage.getItem('mathGame_totalSolved')) || 0) + 1
+      };
+      localStorage.setItem('mathGame_highScore', data.highScore);
+      localStorage.setItem('mathGame_level', data.level);
+      localStorage.setItem('mathGame_totalSolved', data.totalSolved);
+    }
+
+    function loadProgress() {
+      const savedHighScore = localStorage.getItem('mathGame_highScore');
+      if (savedHighScore) {
+        // Show high score somewhere if UI supported it, for now just log
+        console.log("Loaded High Score:", savedHighScore);
+      }
+    }
   </script>
 </body>
 </html>
