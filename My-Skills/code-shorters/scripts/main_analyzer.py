@@ -20,12 +20,19 @@ def analyze_files(file_paths: List[str], use_complexity: bool) -> Dict[str, Any]
 
     for file_path in file_paths:
         language = detect_language(file_path)
+        if language == "unknown":
+            continue
         lines = count_lines(file_path)
         complexity = 0
+        nesting = 0
+        func_count = 0
         if use_complexity and language != "unknown":
-            complexity = calculate_complexity(file_path, language).get("cyclomatic", 0)
+            detail = calculate_complexity(file_path, language)
+            complexity = detail.get("cyclomatic", 0)
+            nesting = detail.get("nesting_depth", 0)
+            func_count = detail.get("function_count", 0)
 
-        score = calculate_priority_score(lines, complexity)
+        score = calculate_priority_score(lines, complexity, nesting, func_count)
         info = {
             "path": file_path,
             "language": language,
@@ -65,12 +72,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Analyze code for modularization")
     parser.add_argument("--path", default=".", help="Scan path")
     parser.add_argument("--recursive", action="store_true", help="Recursive scan")
+    parser.add_argument("--exclude", default="", help="Exclude pattern")
     parser.add_argument("--no-complexity", action="store_true", help="Skip complexity")
     parser.add_argument("--output-dir", default="reports", help="Output directory")
     args = parser.parse_args()
 
     check_git_environment(args.path)
     files = scan_directory(args.path, recursive=args.recursive)
+    default_excludes = ["code-shorters\\scripts", "code-shorters\\test_files", "code-shorters/scripts", "code-shorters/test_files"]
+    files = [fp for fp in files if not any(ex in fp for ex in default_excludes)]
+    if args.exclude:
+        files = [fp for fp in files if args.exclude not in fp]
     analysis = analyze_files(files, use_complexity=not args.no_complexity)
     report_path = save_report(analysis, Path(args.output_dir))
     print(f"Report saved: {report_path}")

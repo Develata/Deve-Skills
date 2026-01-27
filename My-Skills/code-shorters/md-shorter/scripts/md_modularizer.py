@@ -37,6 +37,10 @@ def main():
     args = parser.parse_args()
 
     src = Path(args.file_path)
+    if not src.exists():
+        print("File not found.")
+        raise SystemExit(1)
+
     lines = src.read_text(encoding="utf-8", errors="ignore").splitlines()
     if len(lines) <= args.max_lines:
         print("File is already within limit.")

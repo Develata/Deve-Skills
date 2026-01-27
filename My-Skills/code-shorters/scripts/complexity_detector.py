@@ -1,61 +1,81 @@
 #!/usr/bin/env python3
-"""Lightweight complexity detector with linter integration."""
+"""Lightweight complexity detector with heuristics and lint integration."""
 
-import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
 from typing import Dict, Any
 
 
-def calculate_priority_score(lines: int, complexity: float) -> float:
-    if complexity > 0:
-        return (lines * 0.4) + (complexity * 0.3)
-    return lines * 0.7
+def calculate_priority_score(lines: int, complexity: float, nesting: int = 0, functions: int = 0) -> float:
+    score = (lines * 0.4) + (complexity * 0.3) + (nesting * 0.2) + (functions * 0.1)
+    if complexity == 0 and nesting == 0 and functions == 0:
+        return lines * 0.7
+    return score
 
 
-def _run_command(command: str, workdir: str) -> Dict[str, Any]:
-    try:
-        result = subprocess.run(
-            command.split(),
-            cwd=workdir,
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-        return {"ok": result.returncode == 0, "stdout": result.stdout, "stderr": result.stderr}
-    except Exception as exc:
-        return {"ok": False, "stdout": "", "stderr": str(exc)}
+def _keyword_complexity(content: str, language: str) -> int:
+    keywords = {
+        "rust": ["if", "for", "while", "match", "loop"],
+        "python": ["if", "for", "while", "elif", "except"],
+        "cpp": ["if", "for", "while", "switch", "catch"],
+        "js": ["if", "for", "while", "switch", "catch"],
+    }
+    return sum(len(re.findall(rf"\b{key}\b", content)) for key in keywords.get(language, []))
+
+
+def _function_count(content: str, language: str) -> int:
+    patterns = {
+        "rust": r"\bfn\s+\w+\s*\(",
+        "python": r"\bdef\s+\w+\s*\(",
+        "cpp": r"\b\w+\s+\w+\s*\(",
+        "js": r"\bfunction\s+\w+\s*\(",
+    }
+    pattern = patterns.get(language)
+    return len(re.findall(pattern, content)) if pattern else 0
+
+
+def _nesting_depth(content: str) -> int:
+    depth = 0
+    max_depth = 0
+    for char in content:
+        if char == "{":
+            depth += 1
+            max_depth = max(max_depth, depth)
+        elif char == "}":
+            depth = max(0, depth - 1)
+    return max_depth
+
+
+def _run_lint(command: str, workdir: str) -> bool:
+    if shutil.which(command.split()[0]) is None:
+        return False
+    result = subprocess.run(command.split(), cwd=workdir, capture_output=True, text=True)
+    return result.returncode == 0
 
 
 def calculate_complexity(file_path: str, language: str) -> Dict[str, Any]:
-    tool_map = {
+    content = Path(file_path).read_text(encoding="utf-8", errors="ignore")
+    complexity = _keyword_complexity(content, language)
+    functions = _function_count(content, language)
+    nesting = _nesting_depth(content) if language in {"rust", "cpp", "js"} else 0
+
+    lint_map = {
         "rust": "cargo clippy --message-format=json",
         "python": "pylint --output-format=json",
         "cpp": "cpplint --output-format=json5",
         "js": "eslint --format=json",
     }
+    lint_cmd = lint_map.get(language)
+    lint_ok = _run_lint(lint_cmd, str(Path(file_path).parent)) if lint_cmd else False
 
-    command = tool_map.get(language)
-    if not command:
-        return {"cyclomatic": 0, "raw_message": "Unsupported language"}
-
-    tool = command.split()[0]
-    if shutil.which(tool) is None:
-        return {"cyclomatic": 0, "raw_message": f"Lint tool {tool} not found"}
-
-    result = _run_command(command, str(Path(file_path).parent))
-    if not result["ok"]:
-        return {"cyclomatic": 0, "raw_message": result["stderr"]}
-
-    return {"cyclomatic": 1, "raw_message": "Lint executed"}
-
-
-def batch_calculate(file_infos: Dict[str, Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
-    results = {}
-    for file_path, info in file_infos.items():
-        results[file_path] = calculate_complexity(file_path, info.get("language", "unknown"))
-    return results
+    return {
+        "cyclomatic": max(1, complexity) if lint_ok else complexity,
+        "function_count": functions,
+        "nesting_depth": nesting,
+        "raw_message": "Lint executed" if lint_ok else "Lint skipped",
+    }
 
 
 if __name__ == "__main__":
@@ -67,7 +87,4 @@ if __name__ == "__main__":
 
     target, lang = sys.argv[1], sys.argv[2]
     info = calculate_complexity(target, lang)
-    print(f"File: {target}")
-    print(f"Language: {lang}")
-    print(f"Cyclomatic: {info['cyclomatic']}")
-    print(f"Message: {info['raw_message']}")
+    print(info)
