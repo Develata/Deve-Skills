@@ -33,15 +33,35 @@ def main():
 
     args = parser.parse_args()
 
+    # Determine input mode: File vs Directory
+    input_path = os.path.abspath(args.file)
+    if not os.path.exists(input_path):
+        print(f"Error: Path not found: {input_path}")
+        sys.exit(1)
+
+    targets = []
+    if os.path.isdir(input_path):
+        # Recursive scan
+        for root, _, files in os.walk(input_path):
+            for file in files:
+                if file.endswith((".rs", ".py")):
+                    targets.append(os.path.join(root, file))
+        print(f"[*] Project Mode: Found {len(targets)} source files in {input_path}")
+    else:
+        # Single file
+        targets.append(input_path)
+
     # Reload config if custom path provided
     if args.config != "logic_config.yaml":
         config = ConfigLoader(args.config)
 
-    file_path = os.path.abspath(args.file)
-    if not os.path.exists(file_path):
-        print(f"Error: File not found: {file_path}")
-        sys.exit(1)
+    for file_path in targets:
+        process_file(
+            file_path, args, config, input_path if os.path.isdir(input_path) else None
+        )
 
+
+def process_file(file_path, args, config, project_root):
     print(f"[*] Analyzing {file_path}...")
 
     # 1. Parse AST
@@ -139,9 +159,16 @@ def main():
 
         # Determine SVG path
         if args.svg_dir:
-            if not os.path.exists(args.svg_dir):
-                os.makedirs(args.svg_dir)
-            svg_path = os.path.join(args.svg_dir, f"{filename}.logic.svg")
+            # If project root is set, mirror structure
+            if project_root:
+                rel_path = os.path.relpath(os.path.dirname(file_path), project_root)
+                target_svg_dir = os.path.join(args.svg_dir, rel_path)
+            else:
+                target_svg_dir = args.svg_dir
+
+            if not os.path.exists(target_svg_dir):
+                os.makedirs(target_svg_dir)
+            svg_path = os.path.join(target_svg_dir, f"{filename}.logic.svg")
         else:
             svg_path = os.path.join(output_dir, f"{filename}.logic.svg")
 
