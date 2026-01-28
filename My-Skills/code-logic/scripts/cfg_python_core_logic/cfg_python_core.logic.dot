@@ -1,0 +1,19 @@
+digraph LogicFlow {
+  rankdir=TB;
+  splines=ortho;
+  node [fontname="Courier New", shape=box, style=filled, fillcolor=white];
+  edge [fontname="Arial", fontsize=10];
+  block_1 [label="def __init__", shape=box];
+  exit_2 [label="return/exit", shape=doublecircle, fillcolor="#F8D7DA", color="#DC3545"];
+  block_3 [label="self.code = code_bytes", shape=box];
+  block_4 [label="self.graph = UniversalLogicGraph(\"pyt...", shape=box];
+  block_5 [label="self.loop_stack = []", shape=box];
+  block_6 [label="self.fn_exit = None", shape=box];
+  block_7 [label="self.config_loader = None", shape=box];
+  block_1 -> block_3 [color="black"];
+  block_3 -> block_4 [color="black"];
+  block_4 -> block_5 [color="black"];
+  block_5 -> block_6 [color="black"];
+  block_6 -> block_7 [color="black"];
+  block_7 -> exit_2 [color="black"];
+}

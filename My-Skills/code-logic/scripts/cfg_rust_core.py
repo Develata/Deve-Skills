@@ -14,11 +14,21 @@ class RustCFGBuilder(RustStmtMixin, RustFlowMixin):
         self.graph = UniversalLogicGraph("rust_cfg")
         self.loop_stack = []
         self.fn_exit = None
+        self.config_loader = None
+
+    def set_config_loader(self, loader):
+        self.config_loader = loader
 
     def build_from_function(self, fn_node):
         fn_name = self._get_text(fn_node.child_by_field_name("name"))
+
+        # Fetch description from config
+        desc = ""
+        if self.config_loader:
+            desc = self.config_loader.get_description(fn_name)
+
         entry = self.graph.add_node(
-            NodeType.BLOCK, label=f"fn {fn_name}", ast_node=fn_node
+            NodeType.BLOCK, label=f"fn {fn_name}", ast_node=fn_node, description=desc
         )
         self.graph.set_entry(entry)
 
@@ -56,11 +66,6 @@ class RustCFGBuilder(RustStmtMixin, RustFlowMixin):
                 continue
 
             if first:
-                # Dispatch manually but intercept the connection?
-                # No, dispatch assumes (current->next).
-                # We want (parent --[custom]--> next).
-                # So we insert a virtual node OR we modify dispatch?
-                # Simpler: Create a Virtual Node to anchor the custom edge.
                 v_node = self.graph.add_node(NodeType.VIRTUAL, label=edge_label)
                 self.graph.add_edge(parent_node, v_node, edge_type, edge_label)
                 current = v_node

@@ -1,23 +1,23 @@
 import os
 from tree_sitter import Language, Parser
 import tree_sitter_rust
+import tree_sitter_python
 
 
 class ASTEngine:
     def __init__(self):
         self.parsers = {}
-        self._init_rust()
+        self._init_lang("rs", tree_sitter_rust)
+        self._init_lang("py", tree_sitter_python)
 
-    def _init_rust(self):
+    def _init_lang(self, ext, module):
         try:
             # New API for tree-sitter >= 0.22
-            rust_lang = Language(tree_sitter_rust.language())
-            parser = Parser(rust_lang)
-            self.parsers["rs"] = parser
+            lang = Language(module.language())
+            parser = Parser(lang)
+            self.parsers[ext] = parser
         except Exception as e:
-            print(f"Error initializing Rust parser: {e}")
-            # Fallback or strict failure?
-            # Given our "perfect" axiom, we should probably fail if we can't parse.
+            print(f"Error initializing {ext} parser: {e}")
             raise e
 
     def parse_file(self, file_path: str):

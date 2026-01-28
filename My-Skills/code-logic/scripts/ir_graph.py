@@ -29,6 +29,7 @@ class Node:
     type: NodeType
     label: str = ""
     ast_node: Any = None
+    description: str = ""  # Added for Chinese comments
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __hash__(self):
@@ -62,9 +63,13 @@ class UniversalLogicGraph:
         self._counter += 1
         return f"{prefix}_{self._counter}"
 
-    def add_node(self, type: NodeType, label: str = "", ast_node=None) -> Node:
+    def add_node(
+        self, type: NodeType, label: str = "", ast_node=None, description: str = ""
+    ) -> Node:
         nid = self._gen_id(type.name.lower())
-        node = Node(id=nid, type=type, label=label, ast_node=ast_node)
+        node = Node(
+            id=nid, type=type, label=label, ast_node=ast_node, description=description
+        )
         self.graph.add_node(nid, data=node)
         return node
 

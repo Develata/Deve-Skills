@@ -41,6 +41,9 @@ My-Skills/code-logic/
 │   ├── cfg_rust_core.py     # 转换层：Rust 构建器入口与调度
 │   ├── cfg_rust_stmt.py     # 转换层：语句处理 Mixin (let, ?, macro)
 │   ├── cfg_rust_flow.py     # 转换层：控制流 Mixin (match, loop, if)
+│   ├── cfg_python_core.py   # 转换层：Python 构建器入口与调度
+│   ├── cfg_python_stmt.py   # 转换层：Python 语句 Mixin (try, with)
+│   ├── cfg_python_flow.py   # 转换层：Python 控制流 Mixin (if, for)
 │   ├── renderer_dsl.py      # 输出层：S-Expr 生成器
 │   └── renderer_dot.py      # 输出层：DOT 生成器
 └── references/
@@ -78,9 +81,9 @@ ULG 是一个有向图 `G = (V, E)`。
 
 ---
 
-## 4. Rust 特性映射策略 (Mapping Strategy)
+## 4. 语言特性映射策略 (Mapping Strategy)
 
-### 4.1 `match` 表达式
+### 4.1 Rust: `match` 表达式
 ```rust
 match x {
     A => block_a,
@@ -93,7 +96,7 @@ match x {
     *   Edge 2: `Cond(Label="B")` -> Node: `Block(block_b)`
     *   Join: 所有 Block 汇聚到一个 `Join` 节点。
 
-### 4.2 `?` 操作符 (Try Operator)
+### 4.2 Rust: `?` 操作符 (Try Operator)
 ```rust
 let y = func(x)?;
 ```
@@ -102,6 +105,19 @@ let y = func(x)?;
     *   Node: `Virtual(Label="?")` (作为 Call 的直接后继)
     *   Edge 1: `Seq(Ok)` -> 下一条语句
     *   Edge 2: `Err(Error)` -> 函数级 `Exit(Error)` 节点
+
+### 4.3 Python: `try/except`
+```python
+try:
+    do_something()
+except ValueError:
+    handle_error()
+```
+*   **ULG 转换**:
+    *   Node: `Virtual(Label="try scope")`
+    *   Edge 1: `Seq` -> Node: `Block(do_something)`
+    *   Edge 2: `Err(Label="Ex")` -> Node: `Block(handle_error)`
+    *   Join: 汇聚到 `end try` 节点。
 
 ---
 
@@ -134,10 +150,10 @@ let y = func(x)?;
 
 1.  **Infrastructure**: 配置 `tree-sitter` 环境。
 2.  **Core Logic**: 实现 `ir_graph.py` 定义数据结构。
-3.  **Parser**: 实现 `ast_engine.py` 加载 Rust 语法。
-4.  **Mapper**: 开发 `cfg_rust.py` 处理 `fn`, `if`, `let`。
-5.  **Advanced Mapper**: 升级 `cfg_rust.py` 处理 `match` 和 `?`。
+3.  **Parser**: 实现 `ast_engine.py` 加载 Rust 和 Python 语法。
+4.  **Rust Mapper**: 开发 `cfg_rust_*.py` 模块。
+5.  **Python Mapper**: 开发 `cfg_python_*.py` 模块。
 6.  **Renderers**: 实现 `renderer_dot` 和 `renderer_dsl`。
-7.  **Verification**: 自测复杂 Rust 文件。
+7.  **Verification**: 自测复杂代码逻辑。
 
 此计划为绝对准则，代码实现必须严格遵循上述定义。

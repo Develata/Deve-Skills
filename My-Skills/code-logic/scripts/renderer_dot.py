@@ -31,6 +31,10 @@ class DotRenderer:
     def _get_node_attr(self, node) -> str:
         label = node.label.replace('"', '\\"')
 
+        # Append description if available
+        if hasattr(node, "description") and node.description:
+            label += f"\\n({node.description})"
+
         # Base attributes
         attrs = [f'label="{label}"']
 

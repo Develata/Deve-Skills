@@ -1,0 +1,19 @@
+# Code-Logic Configuration
+# 此文件用于自定义逻辑分析器的行为与注释
+
+# 全局设置
+settings:
+  show_docstrings: true      # 是否提取代码中的 Docstring 并显示在图中
+  language: "zh-CN"          # 注释的目标语言 (目前仅支持 zh-CN 原生显示)
+
+# 语义映射 (Semantic Map)
+# 为特定的函数或模块提供人类可读的中文描述
+# 格式: "函数名": "描述"
+descriptions:
+  main: "程序主入口：负责参数解析与调度"
+  parse_file: "AST解析：读取文件并生成语法树"
+  build_from_function: "CFG构建：将AST节点转换为控制流图"
+  _process_block: "块处理：递归处理语句块中的子节点"
+  _dispatch_statement: "语句分发：根据节点类型路由到具体处理函数"
+  RustCFGBuilder: "Rust构建器：专门处理Rust语言特性的逻辑构建"
+  PythonCFGBuilder: "Python构建器：专门处理Python语言特性的逻辑构建"
