@@ -8,7 +8,9 @@ from pathlib import Path
 from typing import Dict, Any
 
 
-def calculate_priority_score(lines: int, complexity: float, nesting: int = 0, functions: int = 0) -> float:
+def calculate_priority_score(
+    lines: int, complexity: float, nesting: int = 0, functions: int = 0
+) -> float:
     score = (lines * 0.4) + (complexity * 0.3) + (nesting * 0.2) + (functions * 0.1)
     if complexity == 0 and nesting == 0 and functions == 0:
         return lines * 0.7
@@ -22,7 +24,9 @@ def _keyword_complexity(content: str, language: str) -> int:
         "cpp": ["if", "for", "while", "switch", "catch"],
         "js": ["if", "for", "while", "switch", "catch"],
     }
-    return sum(len(re.findall(rf"\b{key}\b", content)) for key in keywords.get(language, []))
+    return sum(
+        len(re.findall(rf"\b{key}\b", content)) for key in keywords.get(language, [])
+    )
 
 
 def _function_count(content: str, language: str) -> int:
@@ -51,7 +55,9 @@ def _nesting_depth(content: str) -> int:
 def _run_lint(command: str, workdir: str) -> bool:
     if shutil.which(command.split()[0]) is None:
         return False
-    result = subprocess.run(command.split(), cwd=workdir, capture_output=True, text=True)
+    result = subprocess.run(
+        command.split(), cwd=workdir, capture_output=True, text=True
+    )
     return result.returncode == 0
 
 

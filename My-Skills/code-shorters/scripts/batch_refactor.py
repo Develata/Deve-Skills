@@ -18,7 +18,6 @@ SUBSKILL_SCRIPTS = {
     "python": BASE_DIR / "python-shorter" / "scripts" / "python_modularizer.py",
     "cpp": BASE_DIR / "cpp-shorter" / "scripts" / "cpp_modularizer.py",
     "js": BASE_DIR / "js-shorter" / "scripts" / "js_modularizer.py",
-    "md": BASE_DIR / "md-shorter" / "scripts" / "md_modularizer.py",
 }
 
 

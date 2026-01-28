@@ -1,0 +1,23 @@
+{
+  "warning_files": [
+    {
+      "path": "My-Skills\\code-shorters\\references\\language_patterns.md",
+      "language": "js",
+      "lines": 174,
+      "priority_score": 121.8
+    },
+    {
+      "path": "My-Skills\\code-shorters\\references\\refactored\\language_patterns_part3.md",
+      "language": "js",
+      "lines": 137,
+      "priority_score": 95.89999999999999
+    }
+  ],
+  "critical_files": [],
+  "statistics": {
+    "total_files": 6,
+    "warning_count": 2,
+    "critical_count": 0
+  },
+  "scan_timestamp": "2026-01-29 04:06:18"
+}

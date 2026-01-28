@@ -17,7 +17,6 @@ EXTENSION_MAP: Dict[str, str] = {
     ".ts": "js",
     ".jsx": "js",
     ".tsx": "js",
-    ".md": "md",
 }
 
 LANGUAGE_PATTERNS: Dict[str, List[str]] = {
@@ -36,7 +35,7 @@ LANGUAGE_PATTERNS: Dict[str, List[str]] = {
         r"^from\s+\w+\s+import",
     ],
     "cpp": [
-        r"^#include\s*[<\"][\w+\.h",
+        r"^#include\s*[<\"][\w+\.h]",
         r"\bnamespace\s+\w+\s*\{",
         r"\bclass\s+\w+.*:",
         r"\btemplate\s*<\s*\w+\s*>",
@@ -48,7 +47,6 @@ LANGUAGE_PATTERNS: Dict[str, List[str]] = {
         r"\bimport\s+.*\s+from\s+",
         r"export\s+(default\s+)?",
     ],
-    "md": [r"^#+\s+\w+", r"\[.*\]\(.*\)", r"\*\*[^*]+\*\*", r"^>\s+\w+"],
 }
 
 
@@ -59,13 +57,17 @@ def detect_by_extension(file_path: str) -> Optional[str]:
 
 def detect_by_content(file_path: str, sample_bytes: int = 5000) -> Optional[str]:
     try:
-        content = Path(file_path).read_text(encoding="utf-8", errors="ignore")[:sample_bytes]
+        content = Path(file_path).read_text(encoding="utf-8", errors="ignore")[
+            :sample_bytes
+        ]
     except Exception:
         return None
 
     scores: Dict[str, int] = {}
     for lang, patterns in LANGUAGE_PATTERNS.items():
-        score = sum(len(re.findall(pattern, content, re.MULTILINE)) for pattern in patterns)
+        score = sum(
+            len(re.findall(pattern, content, re.MULTILINE)) for pattern in patterns
+        )
         if score:
             scores[lang] = score
 

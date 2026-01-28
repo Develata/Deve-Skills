@@ -1,9 +1,25 @@
-## 检测机制
+class Database:
+    pass
+```
 
-code-shorters 使用**多层级语言检测**机制：
-
-### 一级检测：文件后缀名（快速过滤）
-### 二级检测：文件内容特征（准确分类）
+```python
+if __name__ == "__main__":
+    print(main())
+```
 
 ---
 
+### C++
+
+**文件后缀**: `.cpp`, `.h`, `.hpp`
+
+**一级检测**：通过文件扩展名 `.cpp`, `.h`, `.hpp` 立即识别为 C++。
+
+**二级检测**：至少匹配以下 1 个特征
+
+```cpp
+#include <vector>
+```
+
+```cpp
+namespace MyLib {

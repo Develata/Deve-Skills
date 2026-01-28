@@ -1,0 +1,15 @@
+# Refactor Report
+
+Generated: 2026-01-29 04:06:28
+
+## Summary
+| Metric | Value |
+| --- | --- |
+| total_files | 6 |
+| warning_count | 2 |
+| critical_count | 0 |
+
+
+## Warning Files
+- My-Skills\code-shorters\references\language_patterns.md (174 lines)
+- My-Skills\code-shorters\references\refactored\language_patterns_part3.md (137 lines)

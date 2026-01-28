@@ -1,0 +1,35 @@
+{
+  "warning_files": [
+    {
+      "path": "My-Skills\\code-shorters\\SKILL.md",
+      "language": "md",
+      "lines": 198,
+      "priority_score": 138.6
+    },
+    {
+      "path": "My-Skills\\code-shorters\\references\\complexity_scoring.md",
+      "language": "md",
+      "lines": 192,
+      "priority_score": 134.39999999999998
+    },
+    {
+      "path": "My-Skills\\code-shorters\\references\\language_patterns.md",
+      "language": "md",
+      "lines": 174,
+      "priority_score": 121.8
+    },
+    {
+      "path": "My-Skills\\code-shorters\\references\\refactored\\language_patterns_part3.md",
+      "language": "md",
+      "lines": 137,
+      "priority_score": 95.89999999999999
+    }
+  ],
+  "critical_files": [],
+  "statistics": {
+    "total_files": 38,
+    "warning_count": 4,
+    "critical_count": 0
+  },
+  "scan_timestamp": "2026-01-29 03:44:23"
+}

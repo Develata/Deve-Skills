@@ -1,26 +1,18 @@
 [
   {
-    "file_path": "My-Skills\\code-shorters\\SKILL.md",
-    "language": "md",
-    "status": "success",
-    "message": "Generated 8 parts in My-Skills\\code-shorters\\refactored",
-    "script": "E:\\gitclone\\Deve-Skills\\My-Skills\\code-shorters\\md-shorter\\scripts\\md_modularizer.py",
-    "original_lines": 198
-  },
-  {
-    "file_path": "My-Skills\\code-shorters\\references\\complexity_scoring.md",
-    "language": "md",
-    "status": "success",
-    "message": "Generated 7 parts in My-Skills\\code-shorters\\references\\refactored",
-    "script": "E:\\gitclone\\Deve-Skills\\My-Skills\\code-shorters\\md-shorter\\scripts\\md_modularizer.py",
-    "original_lines": 192
-  },
-  {
     "file_path": "My-Skills\\code-shorters\\references\\language_patterns.md",
-    "language": "md",
+    "language": "js",
     "status": "success",
-    "message": "Generated 5 parts in My-Skills\\code-shorters\\references\\refactored",
-    "script": "E:\\gitclone\\Deve-Skills\\My-Skills\\code-shorters\\md-shorter\\scripts\\md_modularizer.py",
+    "message": "Generated 6 parts in My-Skills\\code-shorters\\references\\refactored",
+    "script": "E:\\gitclone\\Deve-Skills\\My-Skills\\code-shorters\\js-shorter\\scripts\\js_modularizer.py",
     "original_lines": 174
+  },
+  {
+    "file_path": "My-Skills\\code-shorters\\references\\refactored\\language_patterns_part3.md",
+    "language": "js",
+    "status": "success",
+    "message": "File is already within limit.",
+    "script": "E:\\gitclone\\Deve-Skills\\My-Skills\\code-shorters\\js-shorter\\scripts\\js_modularizer.py",
+    "original_lines": 137
   }
 ]

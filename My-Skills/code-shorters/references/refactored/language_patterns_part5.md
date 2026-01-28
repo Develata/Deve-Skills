@@ -1,3 +1,10 @@
-## 不支持的语言
+function processData(data) {
+    return data.map(item => item.value);
+}
+```
 
-如果文件后缀不在支持列表中，或者文件内容特征不匹配任何已知模式，则返回 `unknown`。
+```javascript
+const API_URL = 'https://api.example.com';
+```
+
+```javascript
