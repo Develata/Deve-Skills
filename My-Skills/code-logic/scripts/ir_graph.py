@@ -21,6 +21,7 @@ class EdgeType(Enum):
     COND_FALSE = auto()  # Condition fails / False branch
     ERR = auto()  # Error propagation / Panic
     JUMP = auto()  # Loop back
+    LINK = auto()  # Cross-file reference (New in v1.3)
 
 
 @dataclass
@@ -92,3 +93,35 @@ class UniversalLogicGraph:
     def edges(self):
         for u, v, data in self.graph.edges(data=True):
             yield (self.get_node(u), self.get_node(v), data["type"], data["label"])
+
+    def merge_graph(self, other_graph, prefix: str):
+        """
+        Merge another graph into this one, prefixing IDs to avoid collisions.
+        """
+        id_map = {}
+
+        # 1. Copy Nodes
+        for node in other_graph.nodes():
+            original_id = node.id
+            new_id = f"{prefix}_{original_id}"
+            id_map[original_id] = new_id
+
+            # Create new node data copy
+            new_node = Node(
+                id=new_id,
+                type=node.type,
+                label=node.label,
+                ast_node=node.ast_node,
+                description=node.description,
+                metadata=node.metadata.copy(),  # Shallow copy dict
+            )
+            # Tag with cluster info for Graphviz
+            new_node.metadata["cluster"] = prefix
+
+            self.graph.add_node(new_id, data=new_node)
+
+        # 2. Copy Edges
+        for u, v, type, label in other_graph.edges():
+            new_u_id = id_map[u.id]
+            new_v_id = id_map[v.id]
+            self.graph.add_edge(new_u_id, new_v_id, type=type, label=label)
