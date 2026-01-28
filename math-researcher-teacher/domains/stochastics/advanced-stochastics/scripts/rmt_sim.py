@@ -63,8 +63,10 @@ if __name__ == "__main__":
     import os
 
     # Add project root to path to import common modules
+    # Script is in domains/stochastics/advanced-stochastics/scripts/
+    # Need to go up 4 levels to reach root
     sys.path.append(
-        os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../"))
     )
     from common.plot_engine import plot_histogram_vs_theoretical
     from common.math_utils import setup_environment

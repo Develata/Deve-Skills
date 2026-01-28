@@ -51,7 +51,7 @@ if __name__ == "__main__":
     import os
 
     sys.path.append(
-        os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../"))
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../../"))
     )
     from common.plot_engine import configure_plotting, save_plot
     import matplotlib.pyplot as plt
