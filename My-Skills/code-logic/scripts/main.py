@@ -2,7 +2,7 @@ import argparse
 import sys
 import os
 from ast_engine import ASTEngine
-from cfg_rust import RustCFGBuilder
+from cfg_rust_core import RustCFGBuilder
 from renderer_dot import DotRenderer
 from renderer_dsl import DSLRenderer
 

@@ -28,7 +28,7 @@ class Node:
     id: str
     type: NodeType
     label: str = ""
-    ast_node: Any = None  # Reference to original Tree-sitter node (opaque)
+    ast_node: Any = None
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     def __hash__(self):
@@ -48,7 +48,8 @@ class Edge:
 
 class UniversalLogicGraph:
     """
-    A wrapper around NetworkX DiGraph to enforce strict logic semantics.
+    Wrapper around NetworkX DiGraph.
+    Refactored to support atomic edge creation.
     """
 
     def __init__(self, name: str):
@@ -62,13 +63,15 @@ class UniversalLogicGraph:
         return f"{prefix}_{self._counter}"
 
     def add_node(self, type: NodeType, label: str = "", ast_node=None) -> Node:
-        # Auto-generate ID based on type
         nid = self._gen_id(type.name.lower())
         node = Node(id=nid, type=type, label=label, ast_node=ast_node)
         self.graph.add_node(nid, data=node)
         return node
 
     def add_edge(self, source: Node, target: Node, type: EdgeType, label: str = ""):
+        """
+        Atomic edge creation. No more post-hoc patching.
+        """
         self.graph.add_edge(source.id, target.id, type=type, label=label)
 
     def get_node(self, nid: str) -> Node:
