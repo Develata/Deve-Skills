@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Batch refactor dispatcher (serial mode)."""
 
+import argparse
 import json
 import subprocess
 import sys
@@ -49,7 +50,9 @@ def invoke_subskill(language: str, file_path: str) -> Dict[str, Any]:
     }
 
 
-def run_batch(analysis_data: Dict[str, Any], include_warning: bool) -> List[Dict[str, Any]]:
+def run_batch(
+    analysis_data: Dict[str, Any], include_warning: bool
+) -> List[Dict[str, Any]]:
     results: List[Dict[str, Any]] = []
     targets = list(analysis_data.get("critical_files", []))
     if include_warning:
@@ -78,24 +81,33 @@ def run_batch(analysis_data: Dict[str, Any], include_warning: bool) -> List[Dict
 def save_results(results: List[Dict[str, Any]], output_dir: Path) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / "batch_refactor_results.json"
-    output_path.write_text(json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8")
+    output_path.write_text(
+        json.dumps(results, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
     return output_path
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python batch_refactor.py <analysis.json> [--include-warning]")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Batch refactor")
+    parser.add_argument("analysis_file", help="Analysis JSON file")
+    parser.add_argument(
+        "--include-warning", action="store_true", help="Include warning files"
+    )
+    parser.add_argument("--skip-git", action="store_true", help="Skip Git check")
+    args = parser.parse_args()
 
-    analysis_path = Path(sys.argv[1])
-    include_warning = "--include-warning" in sys.argv
+    analysis_path = Path(args.analysis_file)
     analysis_data = json.loads(analysis_path.read_text(encoding="utf-8"))
 
-    check_git_environment(str(analysis_path.parent))
+    if not args.skip_git:
+        check_git_environment(str(analysis_path.parent))
 
-    results = run_batch(analysis_data, include_warning)
+    results = run_batch(analysis_data, args.include_warning)
     output_path = save_results(results, Path("reports"))
     print(f"Batch results saved: {output_path}")
 
     report_script = Path(__file__).parent / "report_generator.py"
-    subprocess.run([sys.executable, str(report_script), str(analysis_path), "markdown"], check=False)
+    subprocess.run(
+        [sys.executable, str(report_script), str(analysis_path), "markdown"],
+        check=False,
+    )

@@ -53,8 +53,12 @@ def analyze_files(file_paths: List[str], use_complexity: bool) -> Dict[str, Any]
     }
 
     return {
-        "warning_files": sorted(warning, key=lambda x: x["priority_score"], reverse=True),
-        "critical_files": sorted(critical, key=lambda x: x["priority_score"], reverse=True),
+        "warning_files": sorted(
+            warning, key=lambda x: x["priority_score"], reverse=True
+        ),
+        "critical_files": sorted(
+            critical, key=lambda x: x["priority_score"], reverse=True
+        ),
         "statistics": statistics,
         "scan_timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
     }
@@ -74,12 +78,20 @@ if __name__ == "__main__":
     parser.add_argument("--recursive", action="store_true", help="Recursive scan")
     parser.add_argument("--exclude", default="", help="Exclude pattern")
     parser.add_argument("--no-complexity", action="store_true", help="Skip complexity")
+    parser.add_argument("--skip-git", action="store_true", help="Skip Git check")
     parser.add_argument("--output-dir", default="reports", help="Output directory")
     args = parser.parse_args()
 
-    check_git_environment(args.path)
+    if not args.skip_git:
+        check_git_environment(args.path)
+
     files = scan_directory(args.path, recursive=args.recursive)
-    default_excludes = ["code-shorters\\scripts", "code-shorters\\test_files", "code-shorters/scripts", "code-shorters/test_files"]
+    default_excludes = [
+        "code-shorters\\scripts",
+        "code-shorters\\test_files",
+        "code-shorters/scripts",
+        "code-shorters/test_files",
+    ]
     files = [fp for fp in files if not any(ex in fp for ex in default_excludes)]
     if args.exclude:
         files = [fp for fp in files if args.exclude not in fp]

@@ -1,0 +1,16 @@
+# Refactor Report
+
+Generated: 2026-01-29 03:40:39
+
+## Summary
+| Metric | Value |
+| --- | --- |
+| total_files | 18 |
+| warning_count | 3 |
+| critical_count | 0 |
+
+
+## Warning Files
+- My-Skills\code-shorters\SKILL.md (198 lines)
+- My-Skills\code-shorters\references\complexity_scoring.md (192 lines)
+- My-Skills\code-shorters\references\language_patterns.md (174 lines)

@@ -13,13 +13,25 @@ from pathlib import Path
 
 
 def is_git_repo(directory: str = ".") -> bool:
-    """检查指定目录是否为 Git 仓库"""
-    git_dir = Path(directory) / ".git"
-    return git_dir.exists() and git_dir.is_dir()
+    """Check if directory is inside a git repository"""
+    try:
+        subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=directory,
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return True
+    except subprocess.CalledProcessError:
+        return False
+    except FileNotFoundError:
+        print("[X] Git not found")
+        sys.exit(1)
 
 
 def has_uncommitted_changes(directory: str = ".") -> bool:
-    """检查是否有未提交的修改"""
+    """Check for uncommitted changes"""
     try:
         result = subprocess.run(
             ["git", "status", "--porcelain"],
@@ -30,41 +42,40 @@ def has_uncommitted_changes(directory: str = ".") -> bool:
         )
         return len(result.stdout.strip()) > 0
     except Exception as e:
-        print(f"错误：无法检查 git 状态: {e}")
+        print(f"[X] Failed to check git status: {e}")
         sys.exit(1)
 
 
 def check_git_environment(directory: str = ".") -> bool:
     """
-    检查 Git 环境状态
+    Check Git environment status
 
-    返回：
-        True - 环境检查通过
-        False - 检查失败，程序应退出
+    Returns:
+        True - Passed
+        False - Failed (exits)
     """
-    print("正在检查 Git 环境...")
+    print("Checking Git environment...")
 
-    # 检查 1: 是否为 Git 仓库
+    # Check 1: Is inside git repo
     if not is_git_repo(directory):
-        print("✗ 错误：当前目录不是 Git 仓库")
-        print("提示：请先初始化 git 仓库")
-        print("  运行: git init")
+        print("[X] Error: Current directory is not inside a Git repository")
+        print("Tip: Run 'git init' or run inside a git repo")
         sys.exit(1)
 
-    print("✓ Git 仓库检查通过")
+    print("[OK] Git repository check passed")
 
-    # 检查 2: 是否有未提交的修改
+    # Check 2: Uncommitted changes
     if has_uncommitted_changes(directory):
-        print("✗ 错误：存在未提交的修改")
-        print("\n未提交的文件列表：")
+        print("[X] Error: Uncommitted changes detected")
+        print("\nUncommitted files:")
         subprocess.run(["git", "status", "--short"], cwd=directory)
-        print("\n提示：请先提交或暂存修改")
-        print("  查看状态: git status")
-        print("  暂存修改: git add <files>")
-        print("  提交修改: git commit -m 'commit message'")
+        print("\nTip: Please commit or stash changes first")
+        print("  git status")
+        print("  git add <files>")
+        print("  git commit -m 'message'")
         sys.exit(1)
 
-    print("✓ 工作目录干净，无未提交修改")
+    print("[OK] Working directory is clean")
 
     return True
 
