@@ -38,7 +38,9 @@ My-Skills/code-logic/
 │   ├── requirements.txt     # 依赖锁定
 │   ├── ast_engine.py        # 语法层：Tree-sitter 封装
 │   ├── ir_graph.py          # 语义层：ULG 节点与图结构定义
-│   ├── cfg_rust.py          # 转换层：Rust -> ULG 映射器
+│   ├── cfg_rust_core.py     # 转换层：Rust 构建器入口与调度
+│   ├── cfg_rust_stmt.py     # 转换层：语句处理 Mixin (let, ?, macro)
+│   ├── cfg_rust_flow.py     # 转换层：控制流 Mixin (match, loop, if)
 │   ├── renderer_dsl.py      # 输出层：S-Expr 生成器
 │   └── renderer_dot.py      # 输出层：DOT 生成器
 └── references/

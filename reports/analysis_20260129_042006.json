@@ -1,0 +1,17 @@
+{
+  "warning_files": [
+    {
+      "path": "My-Skills\\code-logic\\scripts\\cfg_rust_flow.py",
+      "language": "python",
+      "lines": 239,
+      "priority_score": 110.30000000000001
+    }
+  ],
+  "critical_files": [],
+  "statistics": {
+    "total_files": 8,
+    "warning_count": 1,
+    "critical_count": 0
+  },
+  "scan_timestamp": "2026-01-29 04:20:06"
+}

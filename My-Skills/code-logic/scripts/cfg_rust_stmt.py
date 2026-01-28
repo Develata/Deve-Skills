@@ -23,6 +23,8 @@ class RustStmtMixin:
             return self._handle_return(node, current_node)
         elif t == "expression_statement":
             return self._dispatch_statement(node.children[0], current_node)
+        elif t == "call_expression":
+            return self._handle_call(node, current_node)
         elif t == "macro_invocation":
             return self._handle_macro(node, current_node)
 
@@ -92,6 +94,19 @@ class RustStmtMixin:
         self.graph.add_edge(current_node, ret_node, EdgeType.SEQ)
         self.graph.add_edge(ret_node, self.fn_exit, EdgeType.SEQ)
         return None
+
+    def _handle_call(self, node, current_node: Node) -> Optional[Node]:
+        func_node = node.child_by_field_name("function")
+        func_name = self._get_text(func_node)
+
+        # Determine if it's a known panic-like function (optional heuristic)
+        # For now, treat all as generic calls
+
+        call_node = self.graph.add_node(
+            NodeType.CALL, label=f"{func_name}()", ast_node=node
+        )
+        self.graph.add_edge(current_node, call_node, EdgeType.SEQ)
+        return call_node
 
     def _handle_macro(self, node, current_node: Node) -> Optional[Node]:
         macro_name = self._get_text(node.child_by_field_name("name"))
