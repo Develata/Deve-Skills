@@ -1,5 +1,5 @@
 ---
-name: math-teacher
+name: math-primary-teacher
 description: Interactive math teacher that instantly generates playful, gamified learning experiences. Creates visual playgrounds, interactive artifacts, and engaging games for kids and adults to learn math concepts from basic arithmetic to advanced calculus.
 ---
 
