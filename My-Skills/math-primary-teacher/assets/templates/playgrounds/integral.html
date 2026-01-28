@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>积分与黎曼和</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', sans-serif; text-align: center; background: #f8f9fa; color: #333; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        canvas { background: #fff; border: 1px solid #ddd; border-radius: 4px; width: 100%; height: auto; aspect-ratio: 16/9; }
+        .controls { margin: 30px 0; padding: 20px; background: #e9ecef; border-radius: 10px; }
+        input[type=range] { width: 100%; max-width: 400px; margin: 10px 0; }
+        .stats { font-size: 1.2em; display: flex; justify-content: space-around; margin-top: 20px; font-weight: bold; }
+        .highlight { color: #667eea; }
+        .exact { color: #28a745; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>∫ 积分: 黎曼和逼近</h1>
+        <p>积分就是曲线下面积。我们用许多小矩形来近似它。</p>
+        
+        <canvas id="c" width="800" height="450"></canvas>
+        
+        <div class="controls">
+            <label>矩形数量 (n): <span id="nVal" class="highlight" style="font-size: 1.5em;">10</span></label><br>
+            <input type="range" id="nSlider" min="1" max="100" value="10">
+        </div>
+
+        <div class="stats">
+            <div>近似面积: <span id="approxArea" class="highlight">0.00</span></div>
+            <div>真实面积: <span id="exactArea" class="exact">0.333</span></div>
+        </div>
+        <p style="color:#666; font-size: 0.9em; margin-top: 20px;">函数: y = x² (在 0 到 1 之间)</p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('c');
+        const ctx = canvas.getContext('2d');
+        const slider = document.getElementById('nSlider');
+        
+        // Config
+        const w = 800;
+        const h = 450;
+        const startX = 50;
+        const endX = 750;
+        const graphBottom = 400;
+        const graphTop = 50;
+        const plotWidth = endX - startX;
+        const plotHeight = graphBottom - graphTop;
+
+        // Function: y = x^2
+        function f(x) { return x * x; }
+        // Exact Integral of x^2 from 0 to 1 is 1/3
+        const exact = 1/3;
+
+        function draw() {
+            const n = parseInt(slider.value);
+            document.getElementById('nVal').textContent = n;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Draw Axes
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(startX, graphBottom); ctx.lineTo(endX + 20, graphBottom); // X axis
+            ctx.moveTo(startX, graphBottom); ctx.lineTo(startX, graphTop - 20); // Y axis
+            ctx.stroke();
+
+            // Draw Function Curve
+            ctx.strokeStyle = '#28a745'; // Green for "True" curve
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            for (let px = 0; px <= plotWidth; px++) {
+                const x = px / plotWidth; // x goes 0 to 1
+                const y = f(x);
+                const py = graphBottom - (y * plotHeight); // Scale y to pixels
+                if (px === 0) ctx.moveTo(startX + px, py);
+                else ctx.lineTo(startX + px, py);
+            }
+            ctx.stroke();
+
+            // Draw Riemann Rectangles (Right Sum)
+            const dx = 1 / n; // Width of each bar in math units
+            const barW = plotWidth / n; // Width in pixels
+            let sum = 0;
+
+            ctx.fillStyle = 'rgba(102, 126, 234, 0.5)'; // Translucent Blue
+            ctx.strokeStyle = '#667eea';
+            ctx.lineWidth = 1;
+
+            for (let i = 0; i < n; i++) {
+                // Using Right Endpoint Rule
+                const x = (i + 1) * dx; 
+                const height = f(x);
+                sum += height * dx;
+
+                const px = startX + i * barW;
+                const ph = height * plotHeight;
+                const py = graphBottom - ph;
+
+                ctx.fillRect(px, py, barW, ph);
+                ctx.strokeRect(px, py, barW, ph);
+            }
+
+            // Update Stats
+            document.getElementById('approxArea').textContent = sum.toFixed(4);
+            document.getElementById('exactArea').textContent = exact.toFixed(4);
+        }
+
+        slider.addEventListener('input', draw);
+        draw();
+    </script>
+</body>
+</html>

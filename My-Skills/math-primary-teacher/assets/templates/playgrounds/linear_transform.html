@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>线性变换可视化</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', sans-serif; text-align: center; background: #1a1a1a; color: #eee; padding: 20px; }
+        .container { display: flex; flex-direction: column; align-items: center; max-width: 1000px; margin: 0 auto; }
+        canvas { background: #222; border: 1px solid #444; border-radius: 8px; margin: 20px; }
+        .controls { background: #333; padding: 20px; border-radius: 15px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap; justify-content: center; }
+        .matrix-input { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; position: relative; padding: 0 10px; }
+        .matrix-input::before, .matrix-input::after { content: ''; position: absolute; top: 0; bottom: 0; width: 10px; border: 2px solid #fff; }
+        .matrix-input::before { left: -5px; border-right: none; }
+        .matrix-input::after { right: -5px; border-left: none; }
+        input { width: 60px; font-size: 1.5em; text-align: center; background: #444; color: white; border: 1px solid #666; border-radius: 5px; padding: 5px; }
+        button { background: #00ff88; color: #333; border: none; padding: 10px 20px; font-size: 1.2em; cursor: pointer; border-radius: 5px; font-weight: bold; }
+        .info { max-width: 600px; margin-top: 20px; color: #ccc; }
+    </style>
+</head>
+<body>
+    <h1>🔷 线性变换可视化 (矩阵)</h1>
+    <div class="container">
+        <canvas id="c" width="600" height="600"></canvas>
+        
+        <div class="controls">
+            <div style="font-size: 1.5em;">M = </div>
+            <div class="matrix-input">
+                <input type="number" id="m00" value="1" step="0.1">
+                <input type="number" id="m01" value="0.5" step="0.1">
+                <input type="number" id="m10" value="0" step="0.1">
+                <input type="number" id="m11" value="1" step="0.1">
+            </div>
+            <button onclick="applyTransform()">应用变换</button>
+            <button onclick="reset()" style="background: #ff6b6b;">重置</button>
+        </div>
+        
+        <div class="info">
+            <p>输入一个 2x2 矩阵，观察它如何扭曲空间。</p>
+            <p>红色向量: i-hat (1,0) | 绿色向量: j-hat (0,1)</p>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('c');
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width;
+        const h = canvas.height;
+        const scale = 40; // Pixels per unit
+
+        let currentMatrix = { a: 1, b: 0, c: 0, d: 1 };
+        let targetMatrix = { a: 1, b: 0.5, c: 0, d: 1 };
+        let animationProgress = 1;
+
+        function drawGrid(matrix) {
+            ctx.clearRect(0, 0, w, h);
+            ctx.save();
+            ctx.translate(w/2, h/2); // Origin to center
+            ctx.scale(1, -1); // Flip Y
+
+            // Apply matrix transform for the grid
+            // Note: Canvas transform is columns: a, b, c, d, e, f
+            // Our input is rows: [[a,b], [c,d]].
+            // Vector (x,y) -> (ax+by, cx+dy)
+            // Canvas transform (a, b, c, d, e, f) does: x' = ax + cy + e, y' = bx + dy + f
+            // So we map our matrix [[a,b],[c,d]] to canvas:
+            // Input x goes to x' by a and y' by c? No.
+            // Let's manually draw transformed lines to avoid confusion.
+            
+            const a = matrix.a; // m00
+            const b = matrix.b; // m01
+            const c = matrix.c; // m10
+            const d = matrix.d; // m11
+
+            // Draw transformed grid lines
+            ctx.lineWidth = 1;
+            
+            // Vertical lines (transformed)
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            for(let i = -10; i <= 10; i++) {
+                ctx.beginPath();
+                // Original line: x = i. Points: (i, -10) to (i, 10)
+                // Transformed: M * (i, y)
+                const start = transform(i, -10, a,b,c,d);
+                const end = transform(i, 10, a,b,c,d);
+                ctx.moveTo(start.x * scale, start.y * scale);
+                ctx.lineTo(end.x * scale, end.y * scale);
+                ctx.stroke();
+            }
+
+            // Horizontal lines
+            for(let i = -10; i <= 10; i++) {
+                ctx.beginPath();
+                const start = transform(-10, i, a,b,c,d);
+                const end = transform(10, i, a,b,c,d);
+                ctx.moveTo(start.x * scale, start.y * scale);
+                ctx.lineTo(end.x * scale, end.y * scale);
+                ctx.stroke();
+            }
+
+            // Draw Basis Vectors
+            ctx.lineWidth = 4;
+            
+            // i-hat (1,0) -> (a, c)
+            ctx.strokeStyle = '#ff6b6b';
+            ctx.beginPath();
+            ctx.moveTo(0,0);
+            ctx.lineTo(a * scale, c * scale);
+            ctx.stroke();
+
+            // j-hat (0,1) -> (b, d)
+            ctx.strokeStyle = '#00ff88';
+            ctx.beginPath();
+            ctx.moveTo(0,0);
+            ctx.lineTo(b * scale, d * scale);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function transform(x, y, a, b, c, d) {
+            // [ a b ] [ x ]   [ ax + by ]
+            // [ c d ] [ y ] = [ cx + dy ]
+            return {
+                x: a*x + b*y,
+                y: c*x + d*y
+            };
+        }
+
+        function lerp(start, end, t) {
+            return start + (end - start) * t;
+        }
+
+        function animate() {
+            if (animationProgress < 1) {
+                animationProgress += 0.02;
+                // Easing
+                const t = 1 - Math.pow(1 - animationProgress, 3); 
+                
+                const interpMatrix = {
+                    a: lerp(currentMatrix.a, targetMatrix.a, t),
+                    b: lerp(currentMatrix.b, targetMatrix.b, t),
+                    c: lerp(currentMatrix.c, targetMatrix.c, t),
+                    d: lerp(currentMatrix.d, targetMatrix.d, t)
+                };
+                drawGrid(interpMatrix);
+                requestAnimationFrame(animate);
+            } else {
+                currentMatrix = {...targetMatrix};
+                drawGrid(currentMatrix);
+            }
+        }
+
+        function applyTransform() {
+            targetMatrix = {
+                a: parseFloat(document.getElementById('m00').value),
+                b: parseFloat(document.getElementById('m01').value),
+                c: parseFloat(document.getElementById('m10').value),
+                d: parseFloat(document.getElementById('m11').value)
+            };
+            animationProgress = 0;
+            animate();
+        }
+
+        function reset() {
+            document.getElementById('m00').value = 1;
+            document.getElementById('m01').value = 0;
+            document.getElementById('m10').value = 0;
+            document.getElementById('m11').value = 1;
+            applyTransform();
+        }
+
+        // Init
+        drawGrid(currentMatrix);
+    </script>
+</body>
+</html>

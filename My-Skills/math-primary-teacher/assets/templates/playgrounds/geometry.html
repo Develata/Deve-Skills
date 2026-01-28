@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>动态几何探索</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', sans-serif; text-align: center; background: #f0f8ff; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        canvas { background: #fff; border: 2px solid #333; border-radius: 8px; cursor: pointer; width: 100%; height: auto; touch-action: none; aspect-ratio: 4/3; }
+        .stats { display: flex; justify-content: space-around; margin: 20px 0; font-size: 1.1em; flex-wrap: wrap; gap: 10px; }
+        .stat-box { background: #e3f2fd; padding: 10px 20px; border-radius: 10px; min-width: 100px; }
+        .info { color: #666; margin-top: 10px; }
+        
+        @media (max-width: 480px) {
+            .stats { font-size: 0.9em; }
+            .stat-box { padding: 5px 10px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📐 动态几何: 三角形</h1>
+        <div class="stats">
+            <div class="stat-box">∠A: <span id="angleA">0</span>°</div>
+            <div class="stat-box">∠B: <span id="angleB">0</span>°</div>
+            <div class="stat-box">∠C: <span id="angleC">0</span>°</div>
+            <div class="stat-box">总和: <span id="sum">180</span>°</div>
+        </div>
+        <canvas id="c" width="800" height="600"></canvas>
+        <div class="stats">
+            <div class="stat-box">面积: <span id="area">0</span></div>
+            <div class="stat-box">周长: <span id="perimeter">0</span></div>
+        </div>
+        <div class="info">拖动顶点 (A, B, C) 改变形状</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('c');
+        const ctx = canvas.getContext('2d');
+        
+        // Initial Points
+        const points = [
+            { x: 400, y: 100, label: 'A', color: '#FF6347' },
+            { x: 200, y: 500, label: 'B', color: '#4CAF50' },
+            { x: 600, y: 500, label: 'C', color: '#667eea' }
+        ];
+        
+        let activePoint = null;
+
+        function distance(p1, p2) {
+            return Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        }
+
+        function calculateAngle(p1, center, p2) {
+            const d1 = distance(center, p1);
+            const d2 = distance(center, p2);
+            const d3 = distance(p1, p2);
+            // Law of Cosines: c^2 = a^2 + b^2 - 2ab cos(C)
+            const angleRad = Math.acos((d1*d1 + d2*d2 - d3*d3) / (2 * d1 * d2));
+            return (angleRad * 180 / Math.PI);
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw Grid (Optional)
+            ctx.strokeStyle = '#eee';
+            ctx.lineWidth = 1;
+            for(let i=0; i<canvas.width; i+=50) { ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,canvas.height); ctx.stroke(); }
+            for(let i=0; i<canvas.height; i+=50) { ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width,i); ctx.stroke(); }
+
+            // Draw Triangle
+            ctx.beginPath();
+            ctx.moveTo(points[0].x, points[0].y);
+            ctx.lineTo(points[1].x, points[1].y);
+            ctx.lineTo(points[2].x, points[2].y);
+            ctx.closePath();
+            ctx.fillStyle = 'rgba(102, 126, 234, 0.2)';
+            ctx.fill();
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+
+            // Draw Points
+            points.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 15, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(p.label, p.x, p.y);
+            });
+
+            updateStats();
+        }
+
+        function updateStats() {
+            const a = distance(points[1], points[2]); // Side opposite A
+            const b = distance(points[0], points[2]); // Side opposite B
+            const c = distance(points[0], points[1]); // Side opposite C
+
+            const angA = calculateAngle(points[1], points[0], points[2]);
+            const angB = calculateAngle(points[0], points[1], points[2]);
+            const angC = calculateAngle(points[0], points[2], points[1]);
+
+            document.getElementById('angleA').textContent = angA.toFixed(1);
+            document.getElementById('angleB').textContent = angB.toFixed(1);
+            document.getElementById('angleC').textContent = angC.toFixed(1);
+            
+            // Heron's Formula for Area
+            const s = (a + b + c) / 2;
+            const area = Math.sqrt(s * (s - a) * (s - b) * (s - c));
+            
+            // Display area scaled down slightly for readability (pixels^2 is huge)
+            document.getElementById('area').textContent = (area / 100).toFixed(0);
+            document.getElementById('perimeter').textContent = (a + b + c).toFixed(0);
+        }
+
+        // Interaction Logic
+        function getMousePos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: (clientX - rect.left) * (canvas.width / rect.width),
+                y: (clientY - rect.top) * (canvas.height / rect.height)
+            };
+        }
+
+        function handleStart(e) {
+            const pos = getMousePos(e);
+            points.forEach((p, index) => {
+                if (distance(pos, p) < 30) {
+                    activePoint = index;
+                }
+            });
+        }
+
+        function handleMove(e) {
+            if (activePoint !== null) {
+                e.preventDefault();
+                const pos = getMousePos(e);
+                // Boundary check
+                pos.x = Math.max(20, Math.min(canvas.width - 20, pos.x));
+                pos.y = Math.max(20, Math.min(canvas.height - 20, pos.y));
+                
+                points[activePoint].x = pos.x;
+                points[activePoint].y = pos.y;
+                draw();
+            }
+        }
+
+        function handleEnd() {
+            activePoint = null;
+        }
+
+        canvas.addEventListener('mousedown', handleStart);
+        canvas.addEventListener('mousemove', handleMove);
+        canvas.addEventListener('mouseup', handleEnd);
+        
+        canvas.addEventListener('touchstart', handleStart);
+        canvas.addEventListener('touchmove', handleMove);
+        canvas.addEventListener('touchend', handleEnd);
+
+        draw();
+    </script>
+</body>
+</html>

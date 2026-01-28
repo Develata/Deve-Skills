@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>概率实验室</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', sans-serif; text-align: center; background: #f0f8ff; color: #333; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        .chart-area { height: 300px; display: flex; align-items: flex-end; justify-content: space-around; margin: 30px 0; border-bottom: 2px solid #333; padding-bottom: 5px; }
+        .bar-container { flex: 1; margin: 0 5px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+        .bar { width: 80%; background: #667eea; transition: height 0.5s ease; border-radius: 5px 5px 0 0; min-height: 2px; }
+        .label { margin-top: 10px; font-weight: bold; }
+        .count { margin-bottom: 5px; font-size: 0.9em; color: #666; }
+        .controls { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+        button { background: linear-gradient(135deg, #667eea, #764ba2); color: white; border: none; padding: 15px 30px; border-radius: 10px; font-size: 1.1em; cursor: pointer; transition: transform 0.1s; }
+        button:active { transform: scale(0.95); }
+        button.reset { background: #ff6b6b; }
+        .stats-summary { margin: 20px; font-size: 1.2em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎲 骰子概率模拟器</h1>
+        <div class="stats-summary">
+            总投掷次数: <span id="totalRolls" style="font-weight:bold; color:#764ba2;">0</span>
+        </div>
+        
+        <div class="chart-area" id="chart">
+            <!-- Bars will be generated here -->
+        </div>
+
+        <div class="controls">
+            <button onclick="roll(1)">投 1 次</button>
+            <button onclick="roll(10)">投 10 次</button>
+            <button onclick="roll(100)">投 100 次</button>
+            <button class="reset" onclick="reset()">重置</button>
+        </div>
+        
+        <p>观察：当投掷次数越来越多时，各点数出现的频率是否趋于相等？(大数定律)</p>
+    </div>
+
+    <script>
+        const counts = [0, 0, 0, 0, 0, 0]; // Index 0 is side 1
+        let total = 0;
+
+        function initChart() {
+            const chart = document.getElementById('chart');
+            chart.innerHTML = '';
+            for (let i = 1; i <= 6; i++) {
+                const container = document.createElement('div');
+                container.className = 'bar-container';
+                container.innerHTML = `
+                    <div class="count" id="count-${i}">0</div>
+                    <div class="bar" id="bar-${i}" style="height: 0%"></div>
+                    <div class="label">${i}点</div>
+                `;
+                chart.appendChild(container);
+            }
+        }
+
+        function roll(times) {
+            for (let i = 0; i < times; i++) {
+                const result = Math.floor(Math.random() * 6);
+                counts[result]++;
+                total++;
+            }
+            updateChart();
+        }
+
+        function updateChart() {
+            document.getElementById('totalRolls').textContent = total;
+            const maxCount = Math.max(...counts, 1); // Avoid div by zero
+            
+            for (let i = 0; i < 6; i++) {
+                const count = counts[i];
+                const percentage = (count / total * 100).toFixed(1);
+                // Scale height relative to max count found so far (dynamic scaling)
+                const heightPercent = (count / maxCount) * 100;
+                
+                document.getElementById(`bar-${i+1}`).style.height = `${heightPercent}%`;
+                document.getElementById(`count-${i+1}`).innerHTML = `${count}<br><small>${total > 0 ? percentage : 0}%</small>`;
+            }
+        }
+
+        function reset() {
+            for(let i=0; i<6; i++) counts[i] = 0;
+            total = 0;
+            updateChart();
+        }
+
+        initChart();
+    </script>
+</body>
+</html>

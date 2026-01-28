@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>三角函数单位圆</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', sans-serif; text-align: center; background: #1a1a1a; color: #eee; padding: 20px; }
+        .container { display: flex; flex-direction: column; align-items: center; max-width: 800px; margin: 0 auto; }
+        canvas { background: #222; border: 1px solid #444; border-radius: 8px; margin: 20px; touch-action: none; width: 100%; max-width: 600px; height: auto; aspect-ratio: 1/1; }
+        .info { font-size: 1.2em; margin: 10px; font-family: monospace; background: #333; padding: 15px; border-radius: 10px; min-width: 300px; }
+        .value-box { display: flex; justify-content: space-around; width: 100%; margin-top: 10px; }
+        .val { font-weight: bold; }
+        .sin { color: #ff6b6b; }
+        .cos { color: #4ecdc4; }
+        .tan { color: #ffe66d; }
+    </style>
+</head>
+<body>
+    <h1>🔴 三角函数单位圆</h1>
+    <div class="container">
+        <canvas id="c" width="600" height="600"></canvas>
+        
+        <div class="info">
+            <div>角度: <span id="deg">0</span>° / <span id="rad">0.00</span>π</div>
+            <div class="value-box">
+                <div class="sin">sin(θ) = <span id="sinVal">0.00</span></div>
+                <div class="cos">cos(θ) = <span id="cosVal">1.00</span></div>
+                <div class="tan">tan(θ) = <span id="tanVal">0.00</span></div>
+            </div>
+        </div>
+        <p>拖动圆上的红点改变角度</p>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('c');
+        const ctx = canvas.getContext('2d');
+        const w = 600;
+        const h = 600;
+        const centerX = w / 2;
+        const centerY = h / 2;
+        const radius = 200; // Unit circle radius in pixels
+
+        let angle = -Math.PI / 4; // Initial angle (45 degrees up-right)
+
+        function draw() {
+            ctx.clearRect(0, 0, w, h);
+
+            // Grid & Axes
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(0, centerY); ctx.lineTo(w, centerY); // X axis
+            ctx.moveTo(centerX, 0); ctx.lineTo(centerX, h); // Y axis
+            ctx.stroke();
+
+            // Unit Circle
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Coordinates on circle
+            const px = centerX + Math.cos(angle) * radius;
+            const py = centerY + Math.sin(angle) * radius;
+
+            // Lines representing Sin, Cos, Tan
+            
+            // Cosine (Blue/Cyan) - Horizontal from center
+            ctx.strokeStyle = '#4ecdc4';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(px, centerY);
+            ctx.stroke();
+
+            // Sine (Red) - Vertical from x-axis to point
+            ctx.strokeStyle = '#ff6b6b';
+            ctx.beginPath();
+            ctx.moveTo(px, centerY);
+            ctx.lineTo(px, py);
+            ctx.stroke();
+
+            // Radius Line (White)
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(px, py);
+            ctx.stroke();
+
+            // Tangent (Yellow)
+            // Tangent line touches circle at (1,0) [rightmost point]
+            // We extend the radius line to meet the tangent vertical line x = r
+            // Or simple vertical line at x=r up to y = r*tan(theta)
+            // Visualizing tan on the unit circle usually means the segment on the line x=1
+            const tanLen = Math.tan(angle) * radius;
+            // Only draw if not infinity
+            if (Math.abs(angle % (Math.PI/2)) > 0.01) {
+                 // For visualization simplicity, let's draw tangent at the point on circle
+                 // Tangent line is perpendicular to radius.
+                 // A common visualization is the segment from (1,0) to (1, tan(theta))
+                 // Let's stick to the textbook definition: segment on the tangent line x=1
+                 
+                 // Handle quadrants for visual consistency (mirroring)
+                 // Actually, simpler: extend radius to hit the vertical line x = centerX + radius (or -radius)
+                 let tx = centerX + radius;
+                 if (Math.cos(angle) < 0) tx = centerX - radius;
+                 
+                 // Intersect line from center through (px,py) with vertical line x = tx
+                 // y - cy = tan(a) * (x - cx) => ty - cy = tan(a) * (tx - cx)
+                 // ty = cy + tan(a) * (radius or -radius)
+                 
+                 // Actually, standard viz: Tangent is segment from (1,0) to intersection of angle line.
+                 // Let's draw it at x=1 (right side) always for simplicity of "height = tan"
+                 
+                 const tanX = centerX + radius;
+                 // But if cos is negative, we extend backwards.
+                 // Let's just draw the standard "Geometric Definition"
+                 // Line from (px, py) perpendicular to radius? No.
+                 // Line tangent to circle at (1,0): x=1. 
+                 // Extension of radius intersects x=1 at (1, tan(theta)).
+                 
+                 // If cos is close to 0, tan is huge, don't draw
+                 if (Math.abs(Math.cos(angle)) > 0.01) {
+                     ctx.strokeStyle = '#ffe66d';
+                     ctx.lineWidth = 2;
+                     ctx.beginPath();
+                     // Start at (1,0) relative to center
+                     ctx.moveTo(centerX + radius, centerY); 
+                     // Go to (1, tan(theta))
+                     // Note: Y axis is inverted in canvas (down is positive), so we subtract
+                     ctx.lineTo(centerX + radius, centerY - Math.tan(-angle) * radius); // angle is inverted for canvas y
+                     ctx.stroke();
+                     
+                     // Dashed extension line
+                     ctx.strokeStyle = '#555';
+                     ctx.setLineDash([5, 5]);
+                     ctx.beginPath();
+                     ctx.moveTo(centerX, centerY);
+                     ctx.lineTo(centerX + radius, centerY - Math.tan(-angle) * radius);
+                     ctx.stroke();
+                     ctx.setLineDash([]);
+                 }
+            }
+
+            // Draw Point
+            ctx.fillStyle = '#ff6b6b';
+            ctx.beginPath();
+            ctx.arc(px, py, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Angle Arc
+            ctx.strokeStyle = '#eee';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            // Negative angle because canvas Y is down
+            ctx.arc(centerX, centerY, 30, 0, angle, angle > 0); 
+            ctx.stroke();
+
+            updateStats();
+        }
+
+        function updateStats() {
+            // Normalize angle to 0-360 for display (standard math notation)
+            // Canvas: 0 is Right (3 o'clock), Positive is Clockwise (Down)
+            // Math: 0 is Right, Positive is Counter-Clockwise (Up)
+            // So MathAngle = -CanvasAngle
+            let mathAngle = -angle;
+            while (mathAngle < 0) mathAngle += Math.PI * 2;
+            while (mathAngle >= Math.PI * 2) mathAngle -= Math.PI * 2;
+
+            const deg = (mathAngle * 180 / Math.PI).toFixed(0);
+            const rad = (mathAngle / Math.PI).toFixed(2);
+
+            document.getElementById('deg').textContent = deg;
+            document.getElementById('rad').textContent = rad;
+            
+            document.getElementById('sinVal').textContent = Math.sin(mathAngle).toFixed(2);
+            document.getElementById('cosVal').textContent = Math.cos(mathAngle).toFixed(2);
+            
+            let tanV = Math.tan(mathAngle);
+            document.getElementById('tanVal').textContent = (Math.abs(tanV) > 100) ? "∞" : tanV.toFixed(2);
+        }
+
+        // Interaction
+        function handleInput(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            // Scale coords to internal resolution
+            const scaleX = w / rect.width;
+            const scaleY = h / rect.height;
+            
+            const mx = (clientX - rect.left) * scaleX;
+            const my = (clientY - rect.top) * scaleY;
+
+            // Calculate angle from center
+            angle = Math.atan2(my - centerY, mx - centerX);
+            draw();
+        }
+
+        function addListeners() {
+            const moveHandler = (e) => {
+                if (e.buttons === 1) { // Mouse down
+                    handleInput(e.clientX, e.clientY);
+                }
+            };
+            const touchHandler = (e) => {
+                e.preventDefault();
+                handleInput(e.touches[0].clientX, e.touches[0].clientY);
+            };
+
+            canvas.addEventListener('mousedown', (e) => handleInput(e.clientX, e.clientY));
+            window.addEventListener('mousemove', moveHandler);
+            
+            canvas.addEventListener('touchstart', touchHandler, {passive: false});
+            canvas.addEventListener('touchmove', touchHandler, {passive: false});
+        }
+
+        addListeners();
+        draw();
+    </script>
+</body>
+</html>
