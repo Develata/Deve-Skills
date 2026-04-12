@@ -65,6 +65,11 @@ If Claude serves as reviewer, it must write the acceptance checklist independent
    - Merged acceptance checklist
    - Executor's actual output
    - Verification trail for any claim that affects acceptance, rejection, or major criticism — Claude must independently verify critical claims (do not rely on executor's trail alone)
+   - **Verdict-affecting claims audit**: Executor must tag its verdict-affecting claims (any claim that would change the final Met/Not Met/Partially Met status). Reviewer must explicitly disposition every tagged claim:
+     - ✅ Verified (with trail)
+     - ⚠️ Cannot verify (mark `assumption-dependent`)
+     - ❌ Verification failed (with counter-evidence)
+     - Leaving a tagged claim without disposition is not allowed — silent pass-through is treated as a review gap.
 6. **Final summary distinguishes three statuses**
    - Met
    - Partially met or assumption-dependent
@@ -98,7 +103,12 @@ When a factual claim about the codebase, data, or completed work could change sc
 ### Who performs verification
 
 - The agent making the claim performs the first verification using the cheapest sufficient method
-- The agent challenging or relying on a critical claim must independently verify it — do not trust the other party's trail alone for verdict-affecting claims
+- The other agent **first reviews the existing trail** (re-read the same file:line cited) rather than running an independent verification from scratch
+- Independent re-verification from scratch is only required when:
+  - The trail is incomplete, ambiguous, or points to the wrong file/line
+  - The trail's conclusion doesn't follow from the cited evidence
+  - The claim is verdict-affecting AND the trail was produced by the same agent whose work is being judged (self-grading risk)
+- When both agents discover the same factual dispute simultaneously, the agent with lower verification cost goes first (Codex for code reading, Claude for cross-module judgment); the other reviews the trail
 - Conflict resolution: confidence and persistence are not tiebreakers; verified evidence is
 
 ### How (ordered by cost — prefer the cheapest sufficient)
@@ -156,6 +166,7 @@ Working rules:
 - Verify any factual claim that affects implementation choices or completion status (cite file:line, command output, or artifact path)
 - Report only decision-relevant verification results with a traceable trail — do not log every action
 - Mark unresolved facts as assumption-dependent or blocked rather than guessing
+- Tag verdict-affecting claims: list claims that would change Met/Not Met status under a "Verdict-Affecting Claims" section so the reviewer can audit them
 ```
 
 ## Reviewer Task Packet Template (`/tmp/codex_task.md`)
@@ -199,8 +210,24 @@ Review rules:
   - **Factual dispute about code, data, artifacts, or completed work** → resolve by verification against ground truth; confidence or persistence is not a tiebreaker
   - **Output visibility dispute** → provide the complete output before continuing review
 - For factual disputes, the party challenging a claim must provide counter-evidence (file:line, command + output, or artifact path) or show that the original trail is insufficient; vague rejection is not acceptable
+- **Misclassification guard (B→A downgrade):** If both agents find valid, non-contradictory evidence supporting their respective positions (i.e., evidence points to different dimensions rather than conflicting facts), the dispute is **not** factual — it is a requirement interpretation dispute disguised as a factual one. Force-reclassify to requirement interpretation and escalate to the user with both evidence sets: "Code supports both interpretation X and Y — which did you intend?" The test: if resolving the dispute requires knowing the user's priority or preference rather than a ground-truth fact, it is always type A regardless of how much code evidence exists.
 - If verification is impossible with current access, report the conflict as unresolved and `assumption-dependent` rather than picking a side
 - After verification, both parties must update their conclusion to match the verified ground truth, even if it contradicts their original position
+
+## Convergence Limits
+
+Correction rounds are capped to prevent infinite loops and token waste:
+
+| Task type | Max rounds | Notes |
+|-----------|-----------|-------|
+| Implementation, refactor, documentation | 2 | Standard cap |
+| Bug investigation, cross-module analysis | 3 | Round 3 is restricted: only targeted verification of a narrowed hypothesis — no new hypotheses allowed |
+
+After hitting the cap:
+- Stop the loop immediately
+- Report to user: divergence point, both parties' evidence, and recommended next step
+- User decides whether to continue, redirect, or accept current state
+- Do not restart the loop from round 1 without user instruction
 
 ## Anti-Patterns
 
