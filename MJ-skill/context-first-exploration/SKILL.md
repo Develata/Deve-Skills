@@ -82,6 +82,7 @@ Claude checks itself against these gates:
 | **Mandatory reads** | All files from CLAUDE.md § Mandatory Reads for this task type must be checked | Cannot proceed to Phase 2 |
 | **Unconfirmed items** | If any "not yet confirmed" item could change the approach, read it first | Cannot proceed to Phase 2 |
 | **Edit scope** | Every file edited in Phase 2 must appear in the Phase 1 map | Must read the file and update map before editing |
+| **Doc sync** | If Phase 2 created/deleted files, changed import paths, or altered call chains → `docs/architecture-map.md` must be updated in the same commit | Cannot commit until map is updated |
 
 ## Evidence Standard
 
