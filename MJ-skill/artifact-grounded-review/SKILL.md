@@ -1,106 +1,120 @@
 ---
 name: artifact-grounded-review
-description: Enforces that both Claude and Codex must read actual code and result artifacts before giving evaluation scores. Prevents score inflation from summary-based prompts.
+description: Enforces that both Claude and Codex must read actual code and result artifacts before any dual analysis — not just scoring, but any collaborative analytical task.
 ---
 
-# Artifact-Grounded Dual Review Protocol
+# Artifact-Grounded Dual Analysis Protocol
 
-Use this skill whenever the user asks for dual evaluation, scoring, reviewer simulation, or quality assessment of research work ("dual审稿", "评估研究水平", "审稿人视角", etc.).
+## Scope
+
+This protocol applies to **all dual-agent analytical tasks**, not just scoring:
+- Dual review / 审稿 / evaluation
+- Research quality assessment
+- Bug investigation and root-cause analysis
+- Architecture review and design critique
+- Results interpretation and discussion
+- Any task where both agents form judgments about the codebase or its outputs
 
 ## Problem this solves
 
-When Claude summarises a project's highlights in the Codex dispatch prompt, Codex scores based on the summary (which is inherently positive-framed), not on the actual evidence. This produces inflated scores that miss integrity gaps. Similarly, Claude can score based on "design intent" rather than "executed evidence."
+When Claude feeds Codex a pre-digested summary instead of raw file paths, two failures occur:
+1. **Codex operates on Claude's framing**, not on ground truth — inheriting any bias, omission, or inflation.
+2. **Neither agent truly understands the code** — both work from abstractions, missing implementation details, edge cases, and gaps between claims and artifacts.
 
-## Core Rule
+## Core Rules
 
-**Both Claude and Codex must read primary sources before scoring.**
+### Rule 1: Read before concluding
 
-- "Primary sources" = source code files, result JSON/CSV artifacts, paper/report drafts, git history.
-- A score or claim is **unsupported** unless the reviewer can cite the specific file path and line/key where the evidence lives.
+Both Claude and Codex must **read primary sources** before forming any analytical conclusion.
+
+- "Primary sources" = source code, result artifacts (JSON/CSV/NPZ), paper/report drafts, git history, config files.
+- Reading means opening the file and examining its content — not recalling a summary from a prior conversation turn.
+- An analytical conclusion is **unsupported** unless the agent can cite the specific file path and line/key.
+
+### Rule 2: No pre-digested summaries in dispatch
+
+When Claude dispatches Codex for any analytical task:
+
+**DO:**
+- Give Codex **file paths to read**.
+- Give Codex the **analytical task** (what to determine, what to check, what to evaluate).
+- Give Codex **verification questions** if applicable.
+
+**DO NOT:**
+- Summarise what the code does or what the results show.
+- Include Claude's own conclusions, impressions, or scores.
+- Frame the project with adjectives (strong, robust, comprehensive, weak, etc.).
+- Pre-interpret results — let Codex form its own reading.
+
+### Rule 3: Claude reads independently
+
+- Claude must read the same primary sources, not just relay Codex findings.
+- Claude must form its own view **before** seeing Codex's output.
+- If both agents read the same file and reach different conclusions, they resolve by citing specific lines/keys — not by deferring to whoever sounds more confident.
+
+### Rule 4: Claims require artifacts
+
+- A claim about system behavior requires code evidence (file:line showing the logic).
+- A claim about experimental results requires artifact evidence (file:key showing the number).
+- "The script exists" ≠ "the result was produced." Output artifacts must exist.
 - Design intent without executed artifact = 0 credit for that claim.
-- "The script exists but no output was saved" = missing evidence, not evidence.
 
-## Pre-Scoring Checklist (both agents)
+## How to apply per task type
 
-Before emitting any score, complete all of these:
+### Evaluation / scoring tasks
 
-1. **Read key source modules** — actual logic, not just filenames.
-2. **Read every result artifact** referenced by the paper or report.
-3. **Cross-check numbers**: for each quantitative claim in the paper, verify it appears in an artifact. Flag mismatches.
-4. **Check for phantom results**: claims that lack ANY artifact backing.
-5. **Check overfitting indicators**: `train_roc`, `train_loss`, train–heldout gaps in result JSONs.
-6. **Check claim–artifact correspondence**: does the script that supposedly produced a result actually contain the code to do so?
+Before emitting any score:
+1. Read key source modules — actual logic.
+2. Read every result artifact referenced by the paper or report.
+3. Cross-check: for each quantitative claim, verify it appears in an artifact.
+4. Flag phantom results (claims without artifact backing).
+5. Check overfitting indicators in result files.
+6. Check claim–script correspondence (does the script actually produce what's claimed?).
 
-## Codex Dispatch Rules
-
-When dispatching Codex for evaluation:
-
-### DO
-- Give Codex a **list of file paths** to read.
-- Give Codex a **verification checklist** (what to check).
-- Give Codex a **scoring rubric** (dimensions and scale).
-- Ask Codex to **cite file:line or artifact:key** for every score justification.
-
-### DO NOT
-- Summarise the project's results in the prompt.
-- Include Claude's own scores, conclusions, or impressions.
-- Frame the project positively or negatively — let Codex form its own view.
-- Use adjectives like "strong", "robust", "comprehensive" in the dispatch prompt.
-
-### Prompt template
-
+Codex dispatch template for scoring:
 ```
-You are a critical reviewer. Read these files, then score the work.
+Read these files, then evaluate:
 
-Source files to read:
-- [path1]
-- [path2]
-...
+Source: [paths]
+Artifacts: [paths]
+Paper: [path]
 
-Result artifacts to read:
-- [path3]
-- [path4]
-...
+Checklist: [specific verification questions]
+Rubric: [dimensions]
 
-Paper/report to review:
-- [path5]
-
-Verification checklist:
-1. For each number in the paper, find the backing artifact. Flag any without backing.
-2. Check if scripts match their claimed outputs.
-3. Check train metrics for overfitting indicators.
-4. [task-specific checks]
-
-Score these dimensions (1-10):
-[rubric]
-
-Rules:
-- Cite file:key for every justification.
-- Flag "UNVERIFIED" for claims without artifact backing.
-- Do not accept claims at face value.
+Rules: cite file:key for every justification. Flag UNVERIFIED for unbacked claims.
 ```
 
-## Claude's Review Obligations
+### Research analysis / discussion tasks
 
-- Claude must independently read the same artifacts Codex reads.
-- Claude must not score any dimension higher than the evidence supports.
-- If Claude discovers an artifact gap, it must flag it even if the "design intent" is sound.
-- Claude must NOT pre-read Codex's scores before completing its own review.
+Before forming interpretive conclusions:
+1. Read the result artifacts being discussed.
+2. Read the code that produced them — understand what was actually computed.
+3. Verify that the numbers being interpreted match the artifacts.
+4. Check edge cases: did the computation cover all claimed conditions?
 
-## Convergence Rules
+### Bug investigation / code review tasks
 
-- When scores diverge by > 1.5 on any dimension: both cite evidence. Lower score wins unless higher-scorer provides an artifact path the other missed.
-- Aggregate scores: arithmetic mean of converged dimension scores.
-- Report must include an "Evidence Gaps" section listing every claim without artifact backing.
+Before diagnosing or judging:
+1. Read the relevant source modules.
+2. Trace the actual data flow, not the documented intent.
+3. Run or inspect test outputs if available.
+4. Check git history for context on why code looks the way it does.
 
-## Output Format
+## Convergence rules (for scored evaluations)
+
+- Divergence > 1.5 on any dimension: both cite evidence. Lower score wins unless higher-scorer provides an artifact path the other missed.
+- Report must always include an "Evidence Gaps" section first.
+- Design intent, planned features, or "should work" reasoning never override missing evidence.
+
+## Output format (for scored evaluations)
 
 ```
 ## Evidence Gaps (MUST be first section)
-- [claim] — [missing artifact description]
+- [claim] — [missing artifact or code evidence]
 
 ## Dimension Scores
-| Dimension | Claude | Codex | Converged | Evidence basis |
+| Dimension | Claude | Codex | Converged | Evidence |
 |---|---:|---:|---:|---|
 
 ## Overall
@@ -108,5 +122,5 @@ Rules:
 - 期刊: X/10
 
 ## Integrity Risks
-1. [risk + specific file evidence]
+1. [risk + specific file:line or artifact:key]
 ```
