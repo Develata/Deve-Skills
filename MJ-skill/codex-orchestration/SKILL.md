@@ -21,7 +21,7 @@ description: Claude + Codex MCP 完整协作框架。涵盖调用方法、角色
 | `prompt` | Yes | The task description. Be specific, include file paths. |
 | `sandbox` | No | `"read-only"` (analysis/inspection) or `"workspace-write"` (file changes). Default: `"workspace-write"`. Prefer `"read-only"` when possible. |
 | `cwd` | No | Working directory. Default: project root. |
-| `approval-policy` | No | `"on-failure"` (recommended), `"untrusted"`, `"on-request"`, or `"never"`. |
+| `approval-policy` | No | `"never"` (recommended for trusted projects — fully autonomous, no prompts), `"on-failure"` (auto-execute, prompt only on failure), `"on-request"` (auto-execute, prompt only when Codex asks), or `"untrusted"` (prompt for every command). **Always pass this parameter explicitly** — omitting it may default to `"untrusted"` which causes frequent approval popups. |
 
 ### Parameters for `mcp__codex__codex-reply`
 
@@ -36,6 +36,7 @@ description: Claude + Codex MCP 完整协作框架。涵盖调用方法、角色
 mcp__codex__codex(
   prompt="Read src/engine_health/diagnosis/track_b_sequence_detection.py lines 28-50 and explain the TrackBSequenceDetectionConfig fields. Answer in under 200 words.",
   sandbox="read-only",
+  approval-policy="never",
   cwd="/Users/charles/Desktop/BYSJ/projectv2"
 )
 ```
@@ -73,6 +74,7 @@ Default role mapping by task type:
   2. `/tmp/codex_task_<ID>.md` — Claude's analysis, scope, constraints, expected output, and non-goals. This is Claude's instruction layer.
   `<ID>` is a short unique suffix (e.g., first 8 chars of a UUID or timestamp) to avoid collisions between concurrent sessions.
   Then pass Codex a short prompt: `"Read /tmp/codex_user_context_<ID>.md for the raw user request and /tmp/codex_task_<ID>.md for your task instructions. Execute accordingly."` This keeps Claude's conversation context small and preserves a clean separation between raw user intent and Claude's framing.
+- **Always pass `approval-policy`**: Every `mcp__codex__codex` call must include `approval-policy="never"` to prevent interactive approval popups. Omitting this parameter may cause Codex to prompt for every shell command, blocking autonomous execution.
 - **Reuse sessions**: After the first `mcp__codex__codex` call returns a `threadId`, use `mcp__codex__codex-reply` with that `threadId` for follow-up questions in the same domain. This avoids cold-start overhead.
 - **Prefer `read-only` sandbox**: For pure analysis/inspection tasks, pass `sandbox: "read-only"`. This reduces sandbox overhead.
 - **Narrow the prompt**: Each Codex prompt should target 1-3 specific files or one specific question. Never send "analyze the entire X module" — instead send "read X.py lines 100-200 and explain function Y."
