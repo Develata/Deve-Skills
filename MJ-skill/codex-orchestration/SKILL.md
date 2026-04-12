@@ -30,18 +30,6 @@ description: Claude + Codex MCP 完整协作框架。涵盖调用方法、角色
 | `threadId` | Yes | The `threadId` returned by the initial `mcp__codex__codex` call. |
 | `prompt` | Yes | The follow-up question or instruction. |
 
-### Multi-Account Tool Name Mapping
-
-When multiple Codex accounts are configured (see `codex-account-switching/SKILL.md`), each account has its own MCP tool prefix:
-
-| Account | Tool prefix | Example |
-|---------|-------------|---------|
-| Primary (`codex-main`) | `mcp__codex-main__codex` | `mcp__codex-main__codex(prompt=..., sandbox="read-only")` |
-| Secondary (`codex-b`) | `mcp__codex-b__codex` | `mcp__codex-b__codex(prompt=..., sandbox="read-only")` |
-| Single-account (legacy) | `mcp__codex__codex` | Default when only one account is configured |
-
-Always use the explicit account prefix when multi-account isolation is active. The generic `mcp__codex__codex` should only be used in single-account setups.
-
 ### Example: New Session
 
 ```
@@ -88,7 +76,7 @@ Default role mapping by task type:
 - **Reuse sessions**: After the first `mcp__codex__codex` call returns a `threadId`, use `mcp__codex__codex-reply` with that `threadId` for follow-up questions in the same domain. This avoids cold-start overhead.
 - **Prefer `read-only` sandbox**: For pure analysis/inspection tasks, pass `sandbox: "read-only"`. This reduces sandbox overhead.
 - **Narrow the prompt**: Each Codex prompt should target 1-3 specific files or one specific question. Never send "analyze the entire X module" — instead send "read X.py lines 100-200 and explain function Y."
-- **Specify file paths in prompt**: When you already know the relevant files, include their paths directly in the Codex prompt so it doesn't need to search.
+- **Specify file paths in prompt**: When you already know the relevant files, include their paths directly in the Codex prompt so it doesn't need to search. When you don't know the paths, use the Iterative Retrieval Protocol (§6) instead of guessing.
 - **Cap output expectations**: Tell Codex "answer in under 300 words" or "list only file paths" when full prose is unnecessary.
 - **Avoid redundant delegation**: If Claude already read a file this conversation, do not ask Codex to re-read it. Synthesize from existing context.
 - **Parallel over serial**: When 2-4 independent questions are needed, launch parallel `mcp__codex__codex` calls rather than sequential ones.
@@ -133,37 +121,99 @@ Non-goals:       [what this task explicitly does NOT cover]
 - When assumptions are necessary, declare them and mark them as assumptions.
 - Verification discipline (when, who, how, what trail) for factual claims is defined in the **Verification Discipline** section of `dual-agent-original-request-review/SKILL.md`. Codex tasks that touch the codebase or real artifacts inherit those rules.
 
-## 6. Fallback Protocol
+## 6. Iterative Retrieval Protocol
 
-When Codex MCP is unresponsive (>30s timeout) or returns an error:
+### When to use
 
-1. **Do not retry the same prompt** — Codex availability issues are usually transient or scope-related.
-2. **Claude proceeds directly** using its own Read/Grep/Bash tools for the same task scope.
-3. **Fallback constraints**:
-   - Still follow the Two-File Handoff naming for traceability (write the files even if Codex won't read them — they serve as audit trail).
-   - Still apply the same verification discipline as if Codex were executing.
-   - If the task was a review (Codex as reviewer), Claude performs self-review but must note `"Codex unavailable — single-agent review"` in the final report.
-4. **Report the fallback** in the final summary: which subtask fell back, why, and whether the single-agent result is lower-confidence.
-5. **Do not silently degrade** — the user should know when dual-agent mode was not achieved.
+Use when Claude **cannot confidently determine all relevant file paths** before dispatching Codex. Common triggers:
 
-## 7. Session Lifecycle
+- Bug investigation in an unfamiliar module
+- Tracing a data flow across unknown boundaries
+- Locating experiment outputs whose naming/location varies across runs
+- Understanding a subsystem Claude hasn't read before
 
-### When to reuse a session (`codex-reply`)
-- Follow-up questions in the same analytical domain (same files, same topic)
-- Iterative refinement of the same implementation
-- Asking Codex to verify or extend its own prior output
+**Do NOT use** when file paths are already known — go directly to the standard Two-File Handoff. The decision rule: if Claude can fill the `Scope` field of the Task Framing Template (§5) with specific paths, skip this protocol.
 
-### When to start a new session (`codex`)
-- Switching to an unrelated task or different file scope
-- The prior session's context is no longer relevant or may cause confusion
-- After a session has accumulated >5 rounds — context may degrade; start fresh
+### Protocol: DISPATCH → EVALUATE → REFINE → LOOP
 
-### Session cleanup
-- Codex sessions are stateless on Claude's side — no explicit close needed
-- Do not carry `threadId` across different user requests (each user turn gets fresh delegation decisions)
-- If a session returns increasingly low-quality answers, assume context pollution and start a new session
+```
+Round 1 — Broad discovery (Codex searches, Claude evaluates)
+  Claude → Codex: "Search <directory/module> for <keywords/patterns>.
+                   List files with: path, one-line summary, relevance tier, mtime (if artifact).
+                   Cap at 15 files."
+  Codex → Claude: file list + relevance notes
 
-## 8. Anti-Patterns
+  Claude evaluates: assign relevance tiers, pick top 3-5 files for Round 2.
+  Claude may add new keywords discovered from Codex's file list.
+
+Round 2 — Narrowed inspection (standard Two-File Handoff resumes)
+  Claude writes discovered paths into /tmp/codex_task_<ID>.md as the Scope field.
+  Claude → Codex: "Read <specific files/line ranges>.
+                   Answer <targeted analytical question>."
+  Codex → Claude: detailed findings
+
+Round 3 — Targeted verification (only if Round 2 reveals a gap)
+  Allowed only for: verifying a specific claim, chasing one newly discovered dependency.
+  NOT allowed for: introducing a new hypothesis or widening scope.
+  Claude → Codex (via codex-reply on same threadId):
+                   "Read <newly discovered file> lines X-Y.
+                   Verify whether <specific claim from Round 2>."
+  Codex → Claude: verification result
+```
+
+**Hard cap: 3 rounds.** If relevant files still cannot be located after 3 rounds, Claude reports the gap to the user rather than expanding further.
+
+### Relevance tiers
+
+Claude assigns a tier to each file Codex returns in Round 1:
+
+| Tier | Meaning | Action |
+|------|---------|--------|
+| **High** | Directly implements or contains the target logic/data | Read in Round 2 |
+| **Medium** | Tangentially related (imports, configs, test files) | Read only if High files are insufficient |
+| **Low** | Unlikely relevant (naming coincidence, unrelated module) | Drop unless no better candidates exist |
+
+Threshold: at least 2 High-tier files needed before proceeding to Round 2. If Round 1 yields 0 High files, refine keywords and retry Round 1 once (counts toward the 3-round cap).
+
+### Integration with existing protocols
+
+**Two-File Handoff**: Round 1 uses a lightweight inline prompt (no Two-File needed — it's a search task). Round 2+ transitions to standard Two-File Handoff once scope is known.
+
+**Session reuse**: use `codex-reply` with the same `threadId` across all rounds — Codex retains its discovery context, reducing cold-start overhead.
+
+**Artifact-Grounded Review**: when iterative retrieval locates result artifacts, the staleness check (`artifact-grounded-review/SKILL.md` § Artifact Staleness Check) applies to every discovered artifact. Codex must report artifact mtimes in Round 1 so Claude can filter stale ones before Round 2.
+
+**Verdict-Affecting Claims**: files discovered via iterative retrieval that become the basis of a verdict-affecting claim must be tagged in the executor's claim list (per `dual-agent-original-request-review/SKILL.md` § Standard Process step 5).
+
+### Dispatch template — Round 1
+
+```
+Scope:    <top-level directory or module — intentionally broad>
+Goal:     Find files related to <topic/keywords/patterns>.
+          For each file report: path | one-line summary | relevance (High/Med/Low) | mtime (artifacts only).
+Constraints:
+  - Cap at 15 files
+  - Do NOT read file contents — list only
+  - Include mtime for result artifacts (JSON/CSV/NPZ) so staleness can be assessed
+Expected output: Markdown table
+Non-goals: Deep analysis — that comes in Round 2.
+```
+
+### When iterative retrieval ends early
+
+- If Round 1 yields 3+ High-tier files and Claude can confidently fill the Scope field → skip directly to standard analytical task (no Round 3 needed).
+- If Round 2 fully answers the question → stop, do not force Round 3.
+- Only enter Round 3 when Round 2 explicitly reveals a gap that one more targeted read can close.
+
+### Anti-patterns for iterative retrieval
+
+- Skipping Round 1 and asking Codex to "find and analyze" in one shot (too broad, low quality).
+- Running Round 1 on the entire repo root (`/`) instead of a targeted directory.
+- Continuing past 3 rounds without user input.
+- Using iterative retrieval when Claude already knows the file paths (unnecessary overhead).
+- Treating Round 1 results as analytical conclusions (they are search results, not findings).
+
+## 7. Anti-Patterns
 
 - Sending Codex a prompt that requires the full conversation context it doesn't have.
 - Asking Codex to re-read files Claude already has in context.
@@ -172,3 +222,4 @@ When Codex MCP is unresponsive (>30s timeout) or returns an error:
 - Retrying a failed broad prompt without narrowing scope first.
 - Letting Codex make architectural decisions that should be Claude's responsibility.
 - Treating Codex output as final without Claude review for non-trivial tasks.
+- Using standard narrow dispatch when file paths are unknown (use Iterative Retrieval Protocol §6 instead).
