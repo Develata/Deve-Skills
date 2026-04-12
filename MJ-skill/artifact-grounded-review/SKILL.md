@@ -46,11 +46,13 @@ When Claude dispatches Codex for any analytical task:
 - Frame the project with adjectives (strong, robust, comprehensive, weak, etc.).
 - Pre-interpret results — let Codex form its own reading.
 
-### Rule 3: Claude reads independently
+### Rule 3: Claude reads independently (enforced ordering)
 
 - Claude must read the same primary sources, not just relay Codex findings.
 - Claude must form its own view **before** seeing Codex's output.
+- **Enforcement mechanism**: Before reading Codex's analytical output, Claude writes its own preliminary findings to `/tmp/claude_pre_review_<ID>.md` (even if brief). This creates an immutable record that prevents unconscious anchoring to Codex's framing. The pre-review file is referenced in the final report's evidence trail.
 - If both agents read the same file and reach different conclusions, they resolve by citing specific lines/keys — not by deferring to whoever sounds more confident.
+- This rule integrates with the **verdict-affecting claims audit** defined in `dual-agent-original-request-review/SKILL.md` § Standard Process step 5 — the pre-review file serves as Claude's independent baseline for the audit.
 
 ### Rule 4: Claims require artifacts
 
@@ -58,6 +60,21 @@ When Claude dispatches Codex for any analytical task:
 - A claim about experimental results requires artifact evidence (file:key showing the number).
 - "The script exists" ≠ "the result was produced." Output artifacts must exist.
 - Design intent without executed artifact = 0 credit for that claim.
+
+## Artifact Staleness Check
+
+Before trusting any result artifact, verify it is not stale:
+
+1. **Compare timestamps**: artifact mtime vs. the last commit that touched the generating script.
+   - If the script was modified after the artifact was produced, the artifact is **stale** — it reflects old logic.
+   - Quick check: `stat -f '%m' <artifact>` vs `git log -1 --format='%ct' -- <script>`
+2. **Check git status of the generating script**: if it has uncommitted changes, any existing artifact is potentially stale regardless of mtime.
+3. **Cross-check artifact content**: if the artifact contains a version field, run ID, or timestamp, verify it matches the current configuration (not a leftover from a different experiment run).
+
+Staleness verdict:
+- **Fresh**: artifact postdates the latest script change and matches current config → trust it.
+- **Stale**: artifact predates script changes → flag as `STALE` in the report; do not use for scoring or conclusions without re-running.
+- **Unknown**: cannot determine relationship (e.g., no git history for the script) → mark as `assumption-dependent`.
 
 ## How to apply per task type
 
@@ -107,7 +124,9 @@ Before diagnosing or judging:
 - Report must always include an "Evidence Gaps" section first.
 - Design intent, planned features, or "should work" reasoning never override missing evidence.
 
-## Output format (for scored evaluations)
+## Output formats
+
+### For scored evaluations
 
 ```
 ## Evidence Gaps (MUST be first section)
@@ -123,4 +142,32 @@ Before diagnosing or judging:
 
 ## Integrity Risks
 1. [risk + specific file:line or artifact:key]
+```
+
+### For non-scoring analytical tasks (bug investigation, architecture review, research discussion, etc.)
+
+```
+## Evidence Gaps (MUST be first section)
+- [claim] — [missing artifact or code evidence]
+- [artifact] — staleness status: Fresh / Stale / Unknown
+
+## Findings (ordered by impact)
+| # | Finding | Evidence (file:line or artifact:key) | Confidence |
+|---|---------|--------------------------------------|------------|
+
+## Points of Agreement
+- [both agents agree on X — shared evidence trail]
+
+## Points of Divergence
+- [Claude: X (evidence)] vs [Codex: Y (evidence)] → resolution or escalation
+
+## Verdict-Affecting Claims Audit
+| Claim | Executor status | Reviewer disposition | Trail |
+|-------|----------------|---------------------|-------|
+
+## Residual Unknowns
+- [what remains unverified and why]
+
+## Recommendation
+- [actionable next step with justification]
 ```

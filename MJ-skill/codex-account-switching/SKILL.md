@@ -69,12 +69,15 @@ Expectations:
 ### 4. Add MCP servers — Claude CLI
 
 ```bash
+# Locate the codex binary (adapt if installed differently)
+CODEX_BIN="$(which codex)"   # e.g. /opt/homebrew/bin/codex on macOS arm64
+
 # Remove the ambiguous bare entry first to prevent accidental fall-through
 claude mcp remove codex -s user
 
 # Add explicit per-account entries
-claude mcp add codex-main /opt/homebrew/bin/codex mcp-server -s user -e CODEX_HOME=$HOME/.codex
-claude mcp add codex-b    /opt/homebrew/bin/codex mcp-server -s user -e CODEX_HOME=$HOME/.codex-b
+claude mcp add codex-main "$CODEX_BIN" mcp-server -s user -e CODEX_HOME=$HOME/.codex
+claude mcp add codex-b    "$CODEX_BIN" mcp-server -s user -e CODEX_HOME=$HOME/.codex-b
 
 # Verify
 claude mcp list
@@ -92,18 +95,20 @@ Edit `~/Library/Application Support/Claude/claude_desktop_config.json`. Replace 
 {
   "mcpServers": {
     "codex-main": {
-      "command": "/opt/homebrew/bin/codex",
+      "command": "<CODEX_BIN_PATH>",
       "args": ["mcp-server"],
-      "env": { "CODEX_HOME": "/Users/charles/.codex" }
+      "env": { "CODEX_HOME": "<HOME_DIR>/.codex" }
     },
     "codex-b": {
-      "command": "/opt/homebrew/bin/codex",
+      "command": "<CODEX_BIN_PATH>",
       "args": ["mcp-server"],
-      "env": { "CODEX_HOME": "/Users/charles/.codex-b" }
+      "env": { "CODEX_HOME": "<HOME_DIR>/.codex-b" }
     }
   }
 }
 ```
+
+Replace `<CODEX_BIN_PATH>` with the output of `which codex` (e.g., `/opt/homebrew/bin/codex` on macOS arm64) and `<HOME_DIR>` with your home directory (e.g., `/Users/yourname`).
 
 Then **fully restart Claude Desktop** (Quit, not just close window).
 
@@ -244,6 +249,30 @@ This skill follows the verification discipline defined in the dual-agent-origina
 | Two homes share the same credentials | One home is a symlink instead of a real dir | `ls -la ~/.codex* /` and replace symlinks with real dirs |
 | `claude mcp list` still shows bare `codex` after migration | Entry was project-scoped, not user-scoped | `claude mcp remove codex -s project` or `-s local` |
 
+## Account Removal
+
+To remove a secondary account cleanly:
+
+```bash
+# 1. Remove the MCP entry
+claude mcp remove codex-b -s user
+
+# 2. (Optional) Delete the home directory
+rm -rf ~/.codex-b
+
+# 3. If using Claude Desktop, remove the entry from claude_desktop_config.json and restart
+```
+
+Do not remove the primary account (`codex-main`) unless you are migrating back to single-account mode. In that case, re-add a bare `codex` MCP entry pointing to `~/.codex`.
+
+## Codex CLI Upgrade Notes
+
+When upgrading Codex CLI (e.g., `brew upgrade codex`):
+- **Account data survives**: `auth.json` and `config.toml` live in `CODEX_HOME` dirs, not the binary install path.
+- **Binary path may change**: after upgrade, verify `which codex` still matches the path in your MCP server configs. If it changed, update the MCP entries.
+- **Auth format changes**: rare but possible. If a login starts failing after upgrade, run `codex-account-relogin <name>` to refresh credentials.
+- **Test after upgrade**: `codex-account-status` should report all accounts as logged in.
+
 ## Anti-Patterns
 
 - Keeping a bare `codex` MCP alongside `codex-main` "as backup" — accidental use defeats the isolation
@@ -255,6 +284,8 @@ This skill follows the verification discipline defined in the dual-agent-origina
 
 ## Skill Location Note
 
-This skill is project-scoped at `.claude/skills/codex-account-switching/SKILL.md`. It is committed with the project and version-controlled.
+This skill exists in two locations:
+- **Project-scoped**: `.claude/skills/codex-account-switching/SKILL.md` (committed with the project)
+- **Public backup**: `Develata/Deve-Skills` repo under `MJ-skill/codex-account-switching/`
 
-If you want it loaded across all projects regardless of working directory, move it to `~/.claude/skills/codex-account-switching/` (peer to the `superpowers/` framework). The migration is `mv .claude/skills/codex-account-switching ~/.claude/skills/`. After moving, decide whether to keep a project-level pointer or fully delegate to the user-level copy.
+To use it globally across all projects, copy to `~/.claude/skills/codex-account-switching/` (peer to the `superpowers/` framework). Keep the project-level copy as the primary editing target; sync to other locations after changes.

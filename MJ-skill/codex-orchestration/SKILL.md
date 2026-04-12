@@ -30,6 +30,18 @@ description: Claude + Codex MCP 完整协作框架。涵盖调用方法、角色
 | `threadId` | Yes | The `threadId` returned by the initial `mcp__codex__codex` call. |
 | `prompt` | Yes | The follow-up question or instruction. |
 
+### Multi-Account Tool Name Mapping
+
+When multiple Codex accounts are configured (see `codex-account-switching/SKILL.md`), each account has its own MCP tool prefix:
+
+| Account | Tool prefix | Example |
+|---------|-------------|---------|
+| Primary (`codex-main`) | `mcp__codex-main__codex` | `mcp__codex-main__codex(prompt=..., sandbox="read-only")` |
+| Secondary (`codex-b`) | `mcp__codex-b__codex` | `mcp__codex-b__codex(prompt=..., sandbox="read-only")` |
+| Single-account (legacy) | `mcp__codex__codex` | Default when only one account is configured |
+
+Always use the explicit account prefix when multi-account isolation is active. The generic `mcp__codex__codex` should only be used in single-account setups.
+
 ### Example: New Session
 
 ```
@@ -121,7 +133,37 @@ Non-goals:       [what this task explicitly does NOT cover]
 - When assumptions are necessary, declare them and mark them as assumptions.
 - Verification discipline (when, who, how, what trail) for factual claims is defined in the **Verification Discipline** section of `dual-agent-original-request-review/SKILL.md`. Codex tasks that touch the codebase or real artifacts inherit those rules.
 
-## 6. Anti-Patterns
+## 6. Fallback Protocol
+
+When Codex MCP is unresponsive (>30s timeout) or returns an error:
+
+1. **Do not retry the same prompt** — Codex availability issues are usually transient or scope-related.
+2. **Claude proceeds directly** using its own Read/Grep/Bash tools for the same task scope.
+3. **Fallback constraints**:
+   - Still follow the Two-File Handoff naming for traceability (write the files even if Codex won't read them — they serve as audit trail).
+   - Still apply the same verification discipline as if Codex were executing.
+   - If the task was a review (Codex as reviewer), Claude performs self-review but must note `"Codex unavailable — single-agent review"` in the final report.
+4. **Report the fallback** in the final summary: which subtask fell back, why, and whether the single-agent result is lower-confidence.
+5. **Do not silently degrade** — the user should know when dual-agent mode was not achieved.
+
+## 7. Session Lifecycle
+
+### When to reuse a session (`codex-reply`)
+- Follow-up questions in the same analytical domain (same files, same topic)
+- Iterative refinement of the same implementation
+- Asking Codex to verify or extend its own prior output
+
+### When to start a new session (`codex`)
+- Switching to an unrelated task or different file scope
+- The prior session's context is no longer relevant or may cause confusion
+- After a session has accumulated >5 rounds — context may degrade; start fresh
+
+### Session cleanup
+- Codex sessions are stateless on Claude's side — no explicit close needed
+- Do not carry `threadId` across different user requests (each user turn gets fresh delegation decisions)
+- If a session returns increasingly low-quality answers, assume context pollution and start a new session
+
+## 8. Anti-Patterns
 
 - Sending Codex a prompt that requires the full conversation context it doesn't have.
 - Asking Codex to re-read files Claude already has in context.
