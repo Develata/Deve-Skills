@@ -112,6 +112,42 @@ Then Claude must:
 
 This prevents the map from becoming a misleading artifact that causes Claude to skip real files or read phantom ones.
 
+## Context Hygiene
+
+Long sessions degrade Claude's output quality. These rules prevent context overflow and ensure key information survives compaction.
+
+### When to compact
+
+Suggest `/compact` at these **phase boundaries** (not mid-phase):
+- After Phase 1 completes, before Phase 2 begins (research done, ready to execute)
+- After a major implementation subtask completes, before starting the next
+- After a failed approach is abandoned, before trying an alternative
+- When TodoWrite shows 3+ completed items and context feels sluggish
+
+**Never compact** in the middle of: an active debugging trace, a partially written function, or an unfinished code review.
+
+### What survives vs. what is lost after `/compact`
+
+| Survives | Lost |
+|----------|------|
+| CLAUDE.md instructions | Previously-read file contents |
+| TodoWrite task list | Intermediate reasoning and analysis |
+| On-disk files and git state | Tool call history |
+| Memory files | Context map from Phase 1 |
+
+### Post-compact recovery rule
+
+After `/compact`, Claude must:
+1. Re-read the context map if it was produced in Phase 1 (it was lost). If the map was not saved to a file, rebuild it from the TodoWrite task list and `docs/architecture-map.md`.
+2. Re-read any file that is about to be edited (do not rely on pre-compact memory of its contents).
+3. State explicitly: "Post-compact: re-read X files to restore working context."
+
+### Token budget awareness
+
+- If a Phase 1 context map exceeds 8 files, consider saving it to `/tmp/context_map_<ID>.md` so it can be re-read after compact instead of rebuilt.
+- Prefer `Read` with specific line ranges over full-file reads to conserve tokens.
+- When delegating to Codex, use the Two-File Handoff (which offloads context to disk) rather than inlining everything in the prompt.
+
 ## Quick-Mode Override
 
 When the user says `quick` / `直接做` / `skip context`:

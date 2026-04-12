@@ -65,11 +65,6 @@ If Claude serves as reviewer, it must write the acceptance checklist independent
    - Merged acceptance checklist
    - Executor's actual output
    - Verification trail for any claim that affects acceptance, rejection, or major criticism — Claude must independently verify critical claims (do not rely on executor's trail alone)
-   - **Verdict-affecting claims audit**: Executor must tag its verdict-affecting claims (any claim that would change the final Met/Not Met/Partially Met status). Reviewer must explicitly disposition every tagged claim:
-     - ✅ Verified (with trail)
-     - ⚠️ Cannot verify (mark `assumption-dependent`)
-     - ❌ Verification failed (with counter-evidence)
-     - Leaving a tagged claim without disposition is not allowed — silent pass-through is treated as a review gap.
 6. **Final summary distinguishes three statuses**
    - Met
    - Partially met or assumption-dependent
@@ -77,14 +72,12 @@ If Claude serves as reviewer, it must write the acceptance checklist independent
 
 ## Two-File Handoff
 
-The authoritative definition of the Two-File Handoff protocol (file paths, naming with `<ID>` suffix, Codex prompt template) lives in **`codex-orchestration/SKILL.md` § Call Efficiency Rules**. This skill inherits that protocol without modification.
+All Codex dispatches use two files to keep Claude's context small and separate raw user intent from Claude's framing:
 
-Summary for quick reference:
-- `/tmp/codex_user_context_<ID>.md` — user's recent messages verbatim (last 1-3 turns)
-- `/tmp/codex_task_<ID>.md` — Claude's instructions (executor or reviewer packet below)
-- `<ID>` = short unique suffix (UUID prefix or timestamp) to avoid concurrent session collisions
+- `/tmp/codex_user_context.md` — user's recent messages verbatim (last 1-3 turns)
+- `/tmp/codex_task.md` — Claude's instructions (executor or reviewer packet below)
 
-If the two skills ever diverge on Two-File details, `codex-orchestration` is authoritative.
+Codex prompt: `"Read /tmp/codex_user_context.md for the raw user request and /tmp/codex_task.md for your task instructions. Execute accordingly."`
 
 ## Verification Discipline
 
@@ -105,12 +98,7 @@ When a factual claim about the codebase, data, or completed work could change sc
 ### Who performs verification
 
 - The agent making the claim performs the first verification using the cheapest sufficient method
-- The other agent **first reviews the existing trail** (re-read the same file:line cited) rather than running an independent verification from scratch
-- Independent re-verification from scratch is only required when:
-  - The trail is incomplete, ambiguous, or points to the wrong file/line
-  - The trail's conclusion doesn't follow from the cited evidence
-  - The claim is verdict-affecting AND the trail was produced by the same agent whose work is being judged (self-grading risk)
-- When both agents discover the same factual dispute simultaneously, the agent with lower verification cost goes first (Codex for code reading, Claude for cross-module judgment); the other reviews the trail
+- The agent challenging or relying on a critical claim must independently verify it — do not trust the other party's trail alone for verdict-affecting claims
 - Conflict resolution: confidence and persistence are not tiebreakers; verified evidence is
 
 ### How (ordered by cost — prefer the cheapest sufficient)
@@ -168,7 +156,6 @@ Working rules:
 - Verify any factual claim that affects implementation choices or completion status (cite file:line, command output, or artifact path)
 - Report only decision-relevant verification results with a traceable trail — do not log every action
 - Mark unresolved facts as assumption-dependent or blocked rather than guessing
-- Tag verdict-affecting claims: list claims that would change Met/Not Met status under a "Verdict-Affecting Claims" section so the reviewer can audit them
 ```
 
 ## Reviewer Task Packet Template (`/tmp/codex_task.md`)
@@ -212,24 +199,40 @@ Review rules:
   - **Factual dispute about code, data, artifacts, or completed work** → resolve by verification against ground truth; confidence or persistence is not a tiebreaker
   - **Output visibility dispute** → provide the complete output before continuing review
 - For factual disputes, the party challenging a claim must provide counter-evidence (file:line, command + output, or artifact path) or show that the original trail is insufficient; vague rejection is not acceptable
-- **Misclassification guard (B→A downgrade):** If both agents find valid, non-contradictory evidence supporting their respective positions (i.e., evidence points to different dimensions rather than conflicting facts), the dispute is **not** factual — it is a requirement interpretation dispute disguised as a factual one. Force-reclassify to requirement interpretation and escalate to the user with both evidence sets: "Code supports both interpretation X and Y — which did you intend?" The test: if resolving the dispute requires knowing the user's priority or preference rather than a ground-truth fact, it is always type A regardless of how much code evidence exists.
 - If verification is impossible with current access, report the conflict as unresolved and `assumption-dependent` rather than picking a side
 - After verification, both parties must update their conclusion to match the verified ground truth, even if it contradicts their original position
 
-## Convergence Limits
+## Stuck Detection & Recovery
 
-Correction rounds are capped to prevent infinite loops and token waste:
+When Claude or Codex is making no forward progress, use this self-diagnosis protocol instead of retrying blindly.
 
-| Task type | Max rounds | Notes |
-|-----------|-----------|-------|
-| Implementation, refactor, documentation | 2 | Standard cap |
-| Bug investigation, cross-module analysis | 3 | Round 3 is restricted: only targeted verification of a narrowed hypothesis — no new hypotheses allowed |
+### Stuck signals (any one triggers diagnosis)
 
-After hitting the cap:
-- Stop the loop immediately
-- Report to user: divergence point, both parties' evidence, and recommended next step
-- User decides whether to continue, redirect, or accept current state
-- Do not restart the loop from round 1 without user instruction
+- Same tool call attempted 3+ times with identical or near-identical parameters
+- Two consecutive correction rounds that produce no meaningful change in output
+- Context usage exceeds 80% with no clear path to completion
+- Codex returns errors or timeouts on 2+ consecutive calls
+
+### Diagnosis steps (in order)
+
+1. **Name the symptom**: which stuck signal fired?
+2. **Classify the cause**:
+   | Symptom | Likely cause | Verification |
+   |---------|-------------|-------------|
+   | Repeated identical tool calls | Loop — same approach keeps failing | Check if the error message is identical each time |
+   | Correction rounds produce no change | Requirement ambiguity or misaligned checklist | Re-read the raw user request |
+   | Context >80% | Too much intermediate reasoning accumulated | Check TodoWrite for completed items that can be compacted |
+   | Codex errors/timeouts | Service issue or prompt too broad | Try a narrower prompt; if still fails, fall back to Claude |
+3. **Apply the smallest reversible fix**:
+   - Loop → change approach (different tool, different file, different hypothesis)
+   - Ambiguity → escalate to user with specific question
+   - Context overflow → `/compact` at the nearest phase boundary, then re-read critical files
+   - Codex unavailable → Claude proceeds directly (per `codex-orchestration` § Fallback Protocol)
+4. **If fix doesn't work after 1 attempt** → stop and report to user: "I'm stuck. Symptom: X. Tried: Y. Need your input on Z."
+
+### Anti-pattern: silent retry loops
+
+Never retry the same failing operation more than twice without changing something. The third attempt must use a different approach, or the task must be escalated.
 
 ## Anti-Patterns
 
@@ -252,3 +255,8 @@ Every final report must include:
 - Whether the raw request was satisfied
 - Ambiguities still requiring user decision
 - Key decision-critical claims with evidence trail or explicit assumption status
+- **Experience distillation** (1-2 sentences): did this task reveal a reusable pattern, a new failure mode, or a codebase invariant that should be captured? If yes, suggest where to record it:
+  - New or updated **skill rule** → name the skill and section
+  - New **MEMORY.md entry** → draft the one-liner
+  - New **mandatory read** → suggest the file and task area for `docs/architecture-map.md`
+  - **Nothing worth capturing** → state "No new reusable pattern identified" (this is a valid answer; do not force extraction)
