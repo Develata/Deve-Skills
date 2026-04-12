@@ -28,10 +28,11 @@ Every non-trivial task is split into two mandatory phases. Claude must not start
 
 Claude must:
 
-1. **Search broadly** — use Grep/Glob/Read to find relevant files. Start from the module map in CLAUDE.md (§ Architecture Map) if available.
-2. **Read the call chain** — trace from entry point through core logic to output. Don't stop at the first file that "looks right."
-3. **Check configs and tests** — read related config files and test files. Tests often reveal edge cases and invariants that source code doesn't make obvious.
-4. **Produce a context report** before proceeding:
+1. **Existing implementation check** — before writing anything new, search the repo for existing implementations of the same or similar functionality. Use Grep with function/class names, keywords, and synonyms. If an existing implementation is found, the task may become "modify existing" instead of "create new." This prevents duplicate logic — a top failure mode in repos with 100+ files.
+2. **Search broadly** — use Grep/Glob/Read to find relevant files. Start from the module map in `docs/architecture-map.md` (referenced by CLAUDE.md) if available.
+3. **Read the call chain** — trace from entry point through core logic to output. Don't stop at the first file that "looks right."
+4. **Check configs and tests** — read related config files and test files. Tests often reveal edge cases and invariants that source code doesn't make obvious.
+5. **Produce a context report** before proceeding:
 
 ```
 ## Context Map
@@ -60,7 +61,7 @@ entry.py:main() → core.py:process() → utils.py:transform()
 - [ ] file_c.py (not yet read — will read before Phase 2)
 ```
 
-5. **Complete all mandatory reads** — if CLAUDE.md § Mandatory Reads maps the task type to specific files, every listed file must appear in the "Files read" table before Phase 2 begins.
+6. **Complete all mandatory reads** — if CLAUDE.md § Mandatory Reads maps the task type to specific files, every listed file must appear in the "Files read" table before Phase 2 begins.
 
 ### Phase 2: Execute (write code, run commands)
 
@@ -75,6 +76,7 @@ Claude checks itself against these gates:
 
 | Gate | Condition | Fail action |
 |------|-----------|-------------|
+| **Existing impl** | Must search for existing implementations before creating new ones | Report existing impl to user; do not duplicate |
 | **File count** | Phase 1 must list ≥ 3 files read (non-trivial tasks) | Cannot proceed to Phase 2 |
 | **Call chain** | At least one call chain must be traced | Cannot proceed to Phase 2 |
 | **Mandatory reads** | All files from CLAUDE.md § Mandatory Reads for this task type must be checked | Cannot proceed to Phase 2 |
@@ -95,6 +97,20 @@ When Claude delegates to Codex after Phase 1:
 - Phase 1's context map becomes the `Scope` field in the Two-File Handoff (see `codex-orchestration/SKILL.md` § 3).
 - If Phase 1 couldn't determine all relevant files, use the Iterative Retrieval Protocol (`codex-orchestration/SKILL.md` § 6) for Codex's discovery round.
 - Codex inherits the mandatory reads list — it must also read those files before executing.
+
+## Architecture Map Staleness Detection
+
+During Phase 1, if Claude discovers that the actual codebase disagrees with the Architecture Map in `docs/architecture-map.md`:
+- A module listed in the map no longer exists, or a new module exists that is not listed.
+- A key file listed for a module has been renamed, moved, or deleted.
+- The call chain described in the map no longer matches the actual import/call structure.
+
+Then Claude must:
+1. **Flag the discrepancy** in the context report: "Architecture Map drift detected: [specific mismatch]."
+2. **Use the actual code as ground truth** — never follow the map over reality.
+3. **Suggest a map update** to the user at the end of the task (do not silently fix it).
+
+This prevents the map from becoming a misleading artifact that causes Claude to skip real files or read phantom ones.
 
 ## Quick-Mode Override
 
