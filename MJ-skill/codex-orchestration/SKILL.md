@@ -225,3 +225,178 @@ Non-goals: Deep analysis — that comes in Round 2.
 - Letting Codex make architectural decisions that should be Claude's responsibility.
 - Treating Codex output as final without Claude review for non-trivial tasks.
 - Using standard narrow dispatch when file paths are unknown (use Iterative Retrieval Protocol §6 instead).
+
+## 8. Literature Triage Dispatch
+
+### When to use
+
+任何新增文献调研任务：related work 写作、baseline 探索、方法发散、综述补洞。
+
+### 三级读入策略
+
+```
+Level 1 — Triage（判定是否相关）
+  每篇论文只喂：abstract + introduction。
+  获取优先级：arXiv TeX 源 > 期刊 HTML/Markdown > 本地 PDF 前 ~2 页。
+  Codex 输出（每篇一条）：
+    - go / kill
+    - 一句话理由
+    - relevance tag（与本项目哪条研究线相关）
+
+Level 2 — Method Reading（通过 triage 的论文）
+  只喂相关 section（method / experiments），不灌入全文。
+  优先级同 Level 1。
+
+Level 3 — Full Paper（需要复现或深度引用）
+  完整加载，但必须同轮更新
+  `docs/10_diagnosis/literature_*/literature_manifest.json` 登记。
+```
+
+### 获取顺序
+
+1. **arXiv TeX 源**：`https://arxiv.org/e-print/<id>`（arxiv.org 已在 `settings.local.json` WebFetch 白名单）。
+2. **期刊 HTML**：MDPI / Springer / ScienceDirect / PMC / PHM Society 域已在白名单。
+3. **本地 PDF**：仅当 1/2 均失败时回退，且 Level 1 triage 只读 abstract + intro 的前 ~2 页。
+4. **整篇 PDF 灌入**：禁止用作 triage 手段；只允许出现在 Level 3，且配 `literature_manifest.json` 登记。
+
+### 登记义务
+
+Level 3 新增条目最少包含：
+
+- `paper_id`
+- `title`
+- `year`
+- `download_url`
+- `project_use`（如何用到本项目，具体到 claim / baseline / method）
+- `not_for`（明示不可外推的场景，避免未来误引）
+
+落点：
+- Track B 方向：`docs/10_diagnosis/literature_track_b/literature_manifest.json`
+- Fault injection 方向：`docs/10_diagnosis/literature_fault_injection/literature_manifest.json`
+
+### 防误杀
+
+- Triage kill 必须给出一句话理由，不允许 "not relevant" 单独出现，否则视为 UNVERIFIED。
+- 若 Level 1 一次 kill 掉超过 80%，Claude 回读 20% kill 理由抽样复核，防止关键词错配导致的系统性误杀。
+- 与 `artifact-grounded-review` 一致：任何基于文献做出的判断须引用具体 paper:section，禁止从 Codex 的单行 summary 直接上升为 claim。
+
+### PDF Admission Gate（强制执行）
+
+Claude 在读任何 PDF 或向 Codex 派发 PDF 前，必须先回答三问：
+
+1. 当前属于哪个 Level（triage / method / full paper）？
+2. 手头唯一格式是 PDF，还是同时有 TeX 源 / HTML / Markdown？
+3. 根据下表决定是否允许整篇 PDF 进入上下文：
+
+| Level | TeX / HTML / Markdown | PDF |
+|-------|----------------------|-----|
+| **1. Triage** | ✅ 只喂 abstract + intro | ❌ 整篇禁。如只有 PDF，先手工 / 脚本抽 abstract+intro 段落，再喂纯文本 |
+| **2. Method reading** | ✅ 只喂相关 section | ⚠️ 仅允许按 page range 抽取的节选（例：pp. 3–7），整篇禁 |
+| **3. Full paper** | ✅ | ✅ 但必须同轮更新 `literature_manifest.json` 登记 |
+
+Gate 被违反的后果：上下文被稀释、后续决策质量下降（作者实测现象）。违反后的自救：立刻 `/compact` 已灌入的整篇 PDF 内容，按正确 Level 重新喂摘取版。Gate 不依赖 Codex，是 Claude 主线程的责任。
+
+## 9. Divergent–Strict–Decisive Dispatch Pattern
+
+### When to use
+
+开放式技术决策：候选未知、多个方案可行、需要广覆盖的发散 + 强约束的严审。典型触发：
+
+- "下一步加哪个 ablation / 换哪个 baseline"
+- "哪几个 signal family 值得纳入本轮 regen"
+- "三种 threshold 策略里哪一种最贴合 journal bar"
+
+**不要用**于：执行已决定的任务、bug fix、实现已知接口——那些走标准 Two-File Handoff（§3）。
+
+### Three-stage protocol（全部通过 `mcp__codex__codex` 新 session 完成）
+
+```
+Stage 1 — Divergent Generator (Codex session A)
+  Input: raw user request + baseline context + constraints only.
+  NO "prior attempts"、NO "previously rejected ideas"、NO Claude 自己的 lean。
+  Ask: "Generate N=10 candidate approaches, each with: name, one-paragraph
+        rationale, key assumption, failure mode. Do not rank. Do not self-filter."
+  Output: 10 candidates, flat list.
+
+Stage 2 — Strict Scorer (Codex session B, isolated from A)
+  Input: raw user request + baseline context + ONE candidate at a time.
+  Session B sees NO other candidates, NO generator's self-assessment.
+  Ask: "Score this candidate on: novelty, feasibility, baseline-compatibility,
+        implementation complexity, expected gain. Give go / revise / kill plus
+        rationale. Cite specific code or artifact paths from baseline when
+        claiming compatibility."
+  Output: 10 independent score cards (parallel dispatch, different threadIds).
+
+Stage 3 — Decisive Synthesis (Claude, main thread)
+  Read all 10 score cards. Rank by score + fit with project constraints
+  (journal bar / Track B scope / comparability_impact risk).
+  Produce a single ranked short-list (top 2-3) with rationale.
+  If top candidate has UNVERIFIED compatibility claim, route to Codex
+  for verification before committing.
+```
+
+### Context isolation rules（硬性约束）
+
+- Stage 1 和 Stage 2 **必须是新 session**（`mcp__codex__codex`，不是 `codex-reply`）。
+- Stage 2 的 10 次 scoring 并行调用，每次都是独立新 session，**不得复用 threadId**。
+- Stage 1 的 10 个候选整包发给 Stage 2 是错误——必须一人一份隔离。
+- Claude 在 Stage 3 前不得先把自己的 ranking 告诉 Codex，防止 anchoring。
+- 用户的 raw request 和 baseline context 在 Stage 1/2 均逐字保留（沿用 `dual-agent-original-request-review` 的 raw-request preservation）。
+
+### Relation to existing rules
+
+- 本模式是 §2 "Critical decisions" 行（"Both independently, Claude synthesizes"）的具体化实现路径。
+- 不与 `artifact-grounded-review` 冲突：Stage 2 的严审必须 cite 具体 `file:line` / `artifact:key`，缺失证据的评分标 UNVERIFIED。
+- 不替代 `dual-agent-original-request-review` Verification Discipline；Stage 3 产出如果改变项目走向（trainer / baseline / 评分口径），仍须回到 dual-agent review 做正式验收。
+- 与 §8 Literature Triage 互补：Stage 1 的 candidate 可以源自 Level 2 通过的论文；Stage 2 严审时允许引用那些 paper:section 作为 compatibility 依据。
+
+### Output format（Stage 3 的最终输出）
+
+```
+## Divergent-Strict-Decisive Decision Log
+
+Stage 1 candidates (Codex session A, threadId=<...>):
+1. <name> — <one-sentence>
+2. ...
+10. ...
+
+Stage 2 score cards (parallel, 10 independent sessions):
+| Candidate | novelty | feasibility | compat | complexity | gain | verdict | key evidence |
+|-----------|---------|-------------|--------|------------|------|---------|--------------|
+
+Stage 3 ranked short-list (Claude):
+1. <top pick> — rationale + UNVERIFIED claims to resolve
+2. <runner-up>
+```
+
+缺 Stage 2 的证据栏 或 Stage 3 的 short-list 理由，视为流程未完整，回流到 Claude 补齐。
+
+## 10. Long-Running Task Discipline
+
+### When to create a TaskCreate chain
+
+主线程在开工**之前**就建 TaskCreate 链。满足任一条件即触发：
+
+- 工作分解为 ≥3 个有序步骤
+- 任一步骤涉及外部长耗时 job（Phase-1 / Phase-2 / baseline_audit / sample_generator / 任何远程 `ssh_tmux` session）
+- 跨多轮 Codex dispatch 或跨多次 user 交互
+- 结果会更新 paper-facing 数字（每步需要 checkpoint 便于事后追溯）
+
+### Rules
+
+- **粒度**：每个可分离阶段一条 task；不把整个 run 塞成一条，也不细到每个 shell 命令一条。
+- **状态同步**：开始前 `TaskUpdate status=in_progress`，完成**立刻** `status=completed`，不批量攒到最后。
+- **完成态绑 contract**：任务描述写清"完成态"判据，与 §15 Research Contract 的 `success_signal` / `artifact_output_paths` 对齐。
+- **遇 blocker 新建 task**（而非改现 task 含义）。原 task 若被阻塞，仍保留 in_progress，新 task 描述 blocker + 解决路径。
+
+### 为什么
+
+- 上下文可能被压缩、session 可能被切换、用户可能离开再回来；Task 状态比对话内容更持久。
+- 报错或中途停机时，下一任 Claude（或用户自己）能从 task list 拿到"刚到第 N 步"的快照。
+- 配合 §15 Research Contract 双重锚定：task 是过程侧，contract 是结果侧。
+
+### Anti-patterns
+
+- 只 create 不 update：状态失真等于没有。
+- Task 描述与对话内容重复：只写"对未来 Claude 也有信息量"的内容（完成态、blocker、关键决策点）。
+- 长任务跑起来才补 TaskCreate：错过了前期规划阶段的价值。

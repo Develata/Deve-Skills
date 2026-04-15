@@ -84,6 +84,15 @@ Claude checks itself against these gates:
 | **Edit scope** | Every file edited in Phase 2 must appear in the Phase 1 map | Must read the file and update map before editing |
 | **Doc sync** | If Phase 2 created/deleted files, changed import paths, or altered call chains → `docs/architecture-map.md` must be updated in the same commit | Cannot commit until map is updated |
 
+### Doc sync gate protocol
+
+Before **every** `git commit`, Claude must emit a one-line Doc sync verdict in the conversation. This is mandatory even when the gate does not trigger.
+
+- **Triggered**: `"Doc sync: triggered — <reason>. Updating architecture-map.md."` → update the map in the same commit.
+- **Not triggered**: `"Doc sync: not triggered — <reason>."` (e.g., "only docs/outputs changed, no src file count/import/call chain changes.")
+
+Omitting the verdict line is itself a gate failure. The purpose is to make the check visible so the user can audit it and so Claude cannot silently skip it.
+
 ## Evidence Standard
 
 In both phases, Claude must:
