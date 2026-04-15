@@ -8,7 +8,7 @@ Personal Claude Code skills collection, synced from local development environmen
 |-------|-------------|-------------|
 | **artifact-grounded-review** | Enforces that both Claude and Codex must read actual code and result artifacts before any dual analysis — not just scoring, but any collaborative analytical task. | Staleness check (mtime vs git), enforced independent reading order, scoring + non-scoring output templates |
 | **codex-account-switching** | Multi-account Codex MCP isolation for Claude Desktop / CLI. Use when multiple OpenAI API keys need to coexist on the same machine. | Portable paths, helper scripts, account removal/upgrade docs, failure mode table |
-| **codex-orchestration** | Claude + Codex MCP collaboration framework. Covers call methods, role assignment, efficiency rules, cost routing, and task templates. | Multi-account tool mapping, iterative retrieval protocol, session lifecycle, Two-File Handoff (authoritative source), approval-policy=never |
+| **codex-orchestration** | Claude + Codex MCP collaboration framework. Covers call methods, role assignment, efficiency rules, cost routing, and task templates. | Multi-account tool mapping, iterative retrieval protocol, session lifecycle, Two-File Handoff (authoritative source), approval-policy=never, **three-level literature triage + PDF admission gate** (§8), **divergent-strict-decisive dispatch** for open-ended technical decisions (§9), **long-running task discipline** via TaskCreate chains (§10) |
 | **context-first-exploration** | Forces Claude to build a context map before writing or modifying code. Prevents the "read too little, act too fast" failure mode in medium-to-large repos. | Two-phase protocol (read → execute), existing implementation check, enforcement gates, mandatory reads, context hygiene (compact rules), architecture map staleness detection |
 | **dual-agent-original-request-review** | Ensures both executor and reviewer work directly from the same raw user request, avoiding paraphrase drift. | Verdict-affecting claims audit, verification dedup, B→A misclassification guard, tiered convergence cap, stuck detection & recovery, experience distillation |
 | **superpowers** | Full-featured skill suite including brainstorming, plan writing, TDD, systematic debugging, subagent-driven development, code review, and more. | Third-party skill (not custom-written) — see Superpowers Compatibility below |
@@ -66,6 +66,7 @@ Key features were informed by practices from high-star repos:
 | Stuck detection | ECC `agent-introspection-debugging` |
 | Experience distillation | ECC `rules-distill` |
 | Iterative retrieval | ECC `iterative-retrieval` |
+| Literature triage (TeX-first, abstract+intro only) + PDF admission gate + divergent-strict-decisive dispatch structure | [linux.do: AI 科研不完全指北 (TOP10 PhD)](https://linux.do/t/topic/1969598) — structural methodology kept; author's Gemini-as-third-agent recommendation rejected after empirical test (0/5 CrossRef match vs Codex 5/5 on journal lit-scout, 2026-04-16) |
 
 ## Usage
 
