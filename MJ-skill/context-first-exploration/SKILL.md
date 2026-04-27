@@ -16,13 +16,25 @@ This is worst when: the repo is large, naming is non-obvious, the task spans mod
 
 ## When to use
 
-- **Always** when the task involves modifying code or analyzing results across more than one file.
-- **Always** when Claude hasn't read the relevant module in this conversation yet.
-- **Skip** only for: single-file edits where the user has explicitly named the file, pure Q&A, or trivial formatting.
+- **Default trigger**: tasks that modify code or analyze results across more than one file, when Claude hasn't read the relevant module yet.
+- **Skip without going through Phase 1** (no Phase 1 required):
+  - single-file edits where the user named the file
+  - pure Q&A and clarification questions
+  - governance-meta-doc tweaks (this skill itself, hooks, settings.json, CLAUDE.md / AGENTS.md prose)
+  - trivial formatting / typo fixes
+  - **strict single-file probes** — exactly one new script, no new outputs subdirectory, imports only from modules already read in this conversation, ≤ ~100 lines
+- **NOT Skip — Phase 1 still required**, even if the user or I call it a "probe":
+  - new analytical script that imports ≥3 production modules
+  - new analytical script that creates a new outputs subdirectory
+  - new script ≥150 lines
+  - cross-flight / cross-cohort / cross-seed analytical pipeline that depends on more than one production helper file
 
-## Core Rule: Two Phases, No Shortcut
+  Rule of thumb: if the script reuses production helpers across modules and writes a new outputs tree, treat it as cross-file analysis, not a "daily probe".
+- **Always reducible**: when the user says `quick` / `直接做` / `skip context`, Phase 1 collapses to a one-sentence declaration.
 
-Every non-trivial task is split into two mandatory phases. Claude must not start Phase 2 until Phase 1 is explicitly complete.
+## Core Rule: Two Phases (preferred default)
+
+Non-trivial tasks default to a two-phase split: Phase 1 (read-only context map) before Phase 2 (execute). This is the preferred working pattern, not an unconditional gate — when the task fits a Skip case above, Phase 1 collapses or is dropped, and the rest of this skill describes what Phase 1 looks like *when* it runs.
 
 ### Phase 1: Context Map (read-only, no edits)
 

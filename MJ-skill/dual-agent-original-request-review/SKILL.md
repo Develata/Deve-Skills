@@ -9,16 +9,28 @@ Use this skill when the user explicitly wants multiple agents to work from the s
 
 ## When to Use
 
-- **Always on** — every task that involves code changes automatically enters dual-agent mode
-- The only exception is pure Q&A or clarification questions that require no code changes
+Dual-agent mode is a **boundary protocol**. The three boundary triggers below are **mandatory** — skipping them means the workflow is procedurally incomplete, and any paper-facing wording / final verdict / source-trace conclusion / empirical numerical claim derived without the corresponding dual is **not admissible** until the dual is run.
+
+### Mandatory triggers (cannot be skipped)
+
+- **(a) Requirement boundary**: major direction shift, cross-stage alignment, or overturning a ≥3-day-old self-authored pre-reg as a load-bearing argument. → requirement-side alignment review.
+- **(b) Decision node**: overturning a plan premise that previously passed dual, switching paths, or rejecting an approach. → plan-prior review.
+- **(c) Post-implementation verification**: after substantive code or readout production, the reviewer **must independently re-run the source-code trace and independently reproduce empirical numbers in the readout**. Acceptance gate: reviewer's independent re-derivation must converge on the same number / the same trace conclusion before the verdict is admitted into paper-facing context. **Not acceptable substitutes**: executor's self-assessment; single-source numbers; caveats embedded in commit body; "I caught the issue myself" as a stand-in for an independent second opinion.
+
+If (a), (b), or (c) is triggered and dual is not run in the same session, the **next session inheriting the work must run the missed dual before advancing any paper-facing claim derived from the unreviewed work** — the burden does not expire.
+
+### Other valid triggers
+
+- **High paraphrase-drift risk**: the user's raw request has subtle wording that an executor's restatement is likely to lose.
+- **Explicit user request**: the user wants two agents on the same raw request.
 
 ## When NOT to Use
 
-- Trivial, mechanical, single-file changes
-- Task is already clear enough that an extra reviewer adds no value
-- Requirements have critical ambiguity — clarify with user first before entering dual-agent mode
+- Routine implementation, debugging, probes (in the implementation flow, before the (c) post-impl checkpoint), variant trials in progress, single-file edits, Q&A, governance-meta-doc tweaks.
+- Tasks already clear enough that an extra reviewer adds no value **AND** none of (a)/(b)/(c) is triggered.
+- Tasks with critical requirement ambiguity — clarify with the user first; entering dual mode on an ambiguous brief just multiplies the misreading.
 
-If the third case applies, clarify the ambiguity with the user before deciding whether to enter dual-agent mode.
+Note: "routine implementation" is NOT an excuse to skip (c). Once code/readout is finalized, (c) triggers regardless of how routine the implementation felt.
 
 ## Core Principles
 

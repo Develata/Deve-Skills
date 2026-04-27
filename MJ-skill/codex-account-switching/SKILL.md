@@ -272,6 +272,9 @@ When upgrading Codex CLI (e.g., `brew upgrade codex`):
 - **Binary path may change**: after upgrade, verify `which codex` still matches the path in your MCP server configs. If it changed, update the MCP entries.
 - **Auth format changes**: rare but possible. If a login starts failing after upgrade, run `codex-account-relogin <name>` to refresh credentials.
 - **Test after upgrade**: `codex-account-status` should report all accounts as logged in.
+- **Server-side default model drift can force a CLI upgrade**: ChatGPT accounts may silently switch default to a newer model (e.g., `gpt-5.5`) that requires CLI ≥ 0.122. Symptom: codex-main returns `model 'gpt-5.5' requires a newer version of Codex`. Account tier (Pro/Team/etc.) is irrelevant — the blocker is CLI version, not subscription.
+- **MCP server pins the old binary across `brew upgrade`**: Claude Code spawns codex MCP servers at startup and keeps the subprocess alive. `brew upgrade --cask codex` updates `which codex` immediately, but the running MCP still uses the old path. **Claude Code full restart required** before the new binary takes effect; `/mcp` reconnect alone is insufficient. Verify with `mcp__codex-main__codex` returning a normal response instead of the version error.
+- **ChatGPT-account model overrides are constrained**: on a ChatGPT-authenticated MCP, passing `model: "gpt-5.2-codex"` returns `not supported when using Codex with a ChatGPT account`. Do not fall back to codex-specialized model IDs. The only fallbacks are (a) upgrade CLI, (b) switch to an API-key MCP (e.g., `codex-b`) that accepts the full model whitelist.
 
 ## Anti-Patterns
 

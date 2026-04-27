@@ -14,6 +14,33 @@ description: Claude + Codex MCP 完整协作框架。涵盖调用方法、角色
 | `mcp__codex__codex` | Start a new Codex session | `{ threadId, content }` |
 | `mcp__codex__codex-reply` | Continue an existing session | `{ threadId, content }` |
 
+Note: in repos using multi-account isolation per the `codex-account-switching` skill, the tool name is suffixed by the account label, e.g. `mcp__codex-main__codex`, `mcp__codex-b__codex`, `mcp__codex-c__codex` etc. This SKILL writes `mcp__codex__codex` as the generic placeholder; substitute your actual MCP server name.
+
+### Account Dispatch Priority (multi-account setups)
+
+When more than one codex MCP server is configured in the user's Claude harness (verified via the `codex-account-switching` skill), the default dispatch order is **`main` first, then `b`, then per-account fallback below**, applied per call (not per session — once a `threadId` is established on an account, all `codex-reply` calls for that thread MUST stay on that same account because session JSONLs and quota are per-account).
+
+**Default dispatch order**:
+
+1. `mcp__codex-main__codex` — primary; this is the account on `codex --version` PATH and gets the bulk of the workload.
+2. `mcp__codex-b__codex` — secondary; reserved for parallel batches and main-account fallback.
+3. Any further account labels (`codex-c`, `codex-personal`, ...) — tertiary, in alphabetical order.
+
+**Fallback triggers** — switch to the next account when the current account returns:
+- HTTP 429 / rate limit / quota exhausted
+- HTTP 5xx / network error
+- MCP timeout / no response
+- Explicit "model not available on this account" error
+- ApprovalDenied (after one retry on same account)
+
+**Exemptions from the main-first rule** (state the reason inline at call site):
+- **Active multi-account batches**: §9 Stage-2 parallel scoring / dual-review pairs that need 2 independent reviewers on different accounts to avoid same-account confirmation bias — assign main/b deliberately.
+- **Quota preservation**: a long-running task that already used >50% of main's daily quota → explicitly route the next non-critical task to b.
+- **User-pinned account**: user says "用 b 跑 / use codex-b" or similar — honor verbatim.
+- **Continuing an existing thread**: `codex-reply` follow-ups MUST use the same `mcp__codex-<account>__codex-reply` as the thread's original `codex` call. Mixing accounts on one threadId fails because the session JSONL is account-local.
+
+**Recording the chosen account**: per §1 "Model verification oracle" below, every dual artifact's Header annotation must verbatim-embed the stdout of the helper script that ships with this skill at `scripts/codex_session_meta.sh` (relative to this SKILL.md's directory; canonical path when skill is installed at user level: `~/.claude/skills/codex-orchestration/scripts/codex_session_meta.sh`). The `session_path` line in the helper's output disambiguates which `~/.codex{,-b,-c,...}/sessions/...` JSONL was used. The dispatch choice is therefore self-documenting in the artifact; no separate "account=" field is needed.
+
 ### Parameters for `mcp__codex__codex`
 
 | Parameter | Required | Description |
@@ -34,10 +61,10 @@ description: Claude + Codex MCP 完整协作框架。涵盖调用方法、角色
 
 ```
 mcp__codex__codex(
-  prompt="Read src/engine_health/diagnosis/track_b_sequence_detection.py lines 28-50 and explain the TrackBSequenceDetectionConfig fields. Answer in under 200 words.",
+  prompt="Read code/engine_health/diagnosis/track_b_sequence_detection.py lines 28-50 and explain the TrackBSequenceDetectionConfig fields. Answer in under 200 words.",
   sandbox="read-only",
   approval-policy="never",
-  cwd="/Users/charles/Desktop/BYSJ/projectv2"
+  cwd="<your project root, e.g. via ${CLAUDE_PROJECT_DIR}>"
 )
 ```
 
@@ -49,6 +76,33 @@ mcp__codex__codex-reply(
   prompt="Now check what default threshold_mode is used and whether it matches the formal package."
 )
 ```
+
+### Model verification oracle
+
+When it matters which codex model / CLI version produced an output (scoring consistency across a batch, audit trails, reproducibility), **do NOT trust model self-report** — LLM introspection hallucinates slugs (observed 2026-04-25: model returned `gpt-5` while session jsonl logged `gpt-5.5`; observed 2026-04-27: model returned `GPT-5 codex-cli 0.125.0` while jsonl logged `gpt-5.5 / 0.125.0` for codex-b and `gpt-5.5 / 0.125.0-alpha.3` for codex-main — the two accounts can sit on different CLI minor versions simultaneously, and `codex --version` reports only one of them depending on which install is on PATH).
+
+Authoritative source per account:
+- codex-main: `~/.codex/sessions/YYYY/MM/DD/rollout-<timestamp>-<threadId>.jsonl`
+- codex-b: `~/.codex-b/sessions/YYYY/MM/DD/rollout-<timestamp>-<threadId>.jsonl`
+
+**Mandatory recording recipe (use the helper, do NOT hand-grep)**: run the skill-bundled helper (`<skill-dir>/scripts/codex_session_meta.sh <threadId>`; canonical path when this skill is installed at user level: `~/.claude/skills/codex-orchestration/scripts/codex_session_meta.sh <threadId>`) and **verbatim-embed its 5-line stdout** into the dual artifact header. The helper handles all `~/.codex*` homes (auto-discovers `~/.codex-b`, `~/.codex-personal`, etc.), uses pipefail-safe grep, and emits a stable key=value block (`model=`, `cli_version=`, `effort=`, `session_path=`, `session_first_ts=`) so any reviewer can re-run the same script against the cited threadId and reproduce the values byte-for-byte.
+
+Manual fallback (only if the skill / helper is unavailable in the current environment):
+- Model slug: `grep -oE '"model":"[^"]*"' <rollout.jsonl> | head -1`
+- CLI version: `head -1 <rollout.jsonl> | python3 -c "import sys,json; print(json.loads(sys.stdin.read())['payload']['cli_version'])"`
+- Reasoning effort (codex-main records this; codex-b currently does not): `grep -oE '"reasoning_effort":"[a-z]+"' <rollout.jsonl> | head -1`
+
+**Hard rule**: any critical dual artifact (scorecard, decision packet, plan-prior or post-impl review readout) MUST contain a Header annotation block populated by the helper's verbatim stdout. The annotation MUST cite the `session_path` line as the primary anchor — that disambiguates which codex home (codex-main vs codex-b) and which exact JSONL was used. Annotations transcribed from Codex's text reply are NOT acceptable; they are subject to silent truncation (see 2026-04-27 codex-main alpha.3 case above where Codex's self-reported `0.125.0` would have lost the alpha suffix had codex-main actually been used for the dual review).
+
+**Required scaffolds**: instead of recreating the artifact structure each time, copy the matching boundary template from the per-skill templates directory and fill in:
+
+| Boundary | Template path |
+|----------|---------------|
+| (a) plan-prior | `.claude/skills/codex-orchestration/templates/(a)_plan_prior_dual_artifact_template.md` |
+| (b) decision-node | `.claude/skills/codex-orchestration/templates/(b)_decision_node_dual_artifact_template.md` |
+| (c) post-impl | `.claude/skills/codex-orchestration/templates/(c)_postimpl_dual_artifact_template.md` |
+
+Each template's first content block is the Header annotation slot — copy the helper's 5-line stdout there verbatim. Each template encodes the boundary-specific evidence requirements (e.g. (c) requires the reviewer to independently re-run source-code trace + reproduce empirical numbers per harness rule 3(c)). The templates are forward-only from 2026-04-27; pre-existing dual artifacts that predate the templates are immutable provenance and are not retroactively rewritten.
 
 ## 2. Executor / Reviewer Role Assignment
 
@@ -74,7 +128,7 @@ Default role mapping by task type:
   2. `/tmp/codex_task_<ID>.md` — Claude's analysis, scope, constraints, expected output, and non-goals. This is Claude's instruction layer.
   `<ID>` is a short unique suffix (e.g., first 8 chars of a UUID or timestamp) to avoid collisions between concurrent sessions.
   Then pass Codex a short prompt: `"Read /tmp/codex_user_context_<ID>.md for the raw user request and /tmp/codex_task_<ID>.md for your task instructions. Execute accordingly."` This keeps Claude's conversation context small and preserves a clean separation between raw user intent and Claude's framing.
-- **Always pass `approval-policy`**: Every `mcp__codex__codex` call must include `approval-policy="never"` to prevent interactive approval popups. Omitting this parameter may cause Codex to prompt for every shell command, blocking autonomous execution.
+- **Always pass `approval-policy`**: Every `mcp__codex__codex` call must include `approval-policy="never"` to prevent interactive approval popups. Omitting this parameter may cause Codex to prompt for every shell command, blocking autonomous execution. **Scope clarification**: `approval-policy="never"` only controls codex's internal shell-command approvals. Claude Code's outer MCP permission layer is separate — each distinct `mcp__codex*` call triggers its own allow/deny prompt unless pre-approved in `settings.local.json` or the session's allow-list. The "never" flag does NOT bypass the outer prompt.
 - **Reuse sessions**: After the first `mcp__codex__codex` call returns a `threadId`, use `mcp__codex__codex-reply` with that `threadId` for follow-up questions in the same domain. This avoids cold-start overhead.
 - **Prefer `read-only` sandbox**: For pure analysis/inspection tasks, pass `sandbox: "read-only"`. This reduces sandbox overhead.
 - **Narrow the prompt**: Each Codex prompt should target 1-3 specific files or one specific question. Never send "analyze the entire X module" — instead send "read X.py lines 100-200 and explain function Y."
@@ -82,6 +136,7 @@ Default role mapping by task type:
 - **Cap output expectations**: Tell Codex "answer in under 300 words" or "list only file paths" when full prose is unnecessary.
 - **Avoid redundant delegation**: If Claude already read a file this conversation, do not ask Codex to re-read it. Synthesize from existing context.
 - **Parallel over serial**: When 2-4 independent questions are needed, launch parallel `mcp__codex__codex` calls rather than sequential ones.
+- **Parallel dispatch threshold**: launching ≥3 concurrent `mcp__codex*__codex` calls in one message floods the user's approval dialog queue; users commonly reject 4-of-7 out of confusion rather than intent. For §9 Stage-2 parallel scoring or any batch dispatch, **either** (a) announce the batch and confirm pre-approval with the user in one round, **or** (b) serialize: one call, wait for result, dispatch next. Default to serialize when a dual is live and the user is actively reviewing.
 - **Fail fast**: If a Codex call is taking too long or returns partial results, do not retry the same broad prompt. Narrow scope and retry, or fall back to Claude's own Read/Grep tools for the specific data needed.
 
 ## 4. Cost-Aware Routing
@@ -101,6 +156,28 @@ Claude tokens are expensive, Codex tokens are cheap. Route accordingly:
 - Do not use Codex as the primary orchestrator when Claude is already the top-level agent.
 - When Claude can answer directly from already-loaded context, do not delegate unnecessarily.
 - Use parallel Codex calls for independent subtasks to maximize throughput.
+
+### Reasoning effort tier
+
+`gpt-5.5` supports `low | medium | high | xhigh` reasoning effort. Default in `~/.codex/config.toml` is `high`. Override per-call via the `config` parameter:
+
+```
+mcp__codex__codex(prompt=..., config={"model_reasoning_effort": "xhigh"}, ...)
+```
+
+When to consider `xhigh` (extra cost + latency, ~2× reasoning_output_tokens):
+
+- §9 Stage-2 strict-rubric scoring on contribution-level decisions (novelty/anti-goal trade-offs).
+- Critical-decision dual reviews where reviewer must independently re-derive a source-code trace or multi-artifact synthesis.
+- Single-shot judgment calls where wrong answer cascades (e.g. "should we kill this paper section").
+
+When to keep `high` (default):
+
+- Bounded implementation / debug / mechanical tasks.
+- Stage-2 batches once started — do NOT mix effort levels mid-batch (creates intra-batch heterogeneity that confounds rank comparison; observed 04-25: C1-C8 all at `high`).
+- Any task where you've already paid for `xhigh` once and the answer was clear.
+
+Verify actual effort applied via session jsonl: `grep -oE '"effort":"[^"]*"' <rollout.jsonl> | head -1`.
 
 ## 5. Task Framing Template
 
@@ -342,6 +419,34 @@ Stage 3 — Decisive Synthesis (Claude, main thread)
 - Stage 1 的 10 个候选整包发给 Stage 2 是错误——必须一人一份隔离。
 - Claude 在 Stage 3 前不得先把自己的 ranking 告诉 Codex，防止 anchoring。
 - 用户的 raw request 和 baseline context 在 Stage 1/2 均逐字保留（沿用 `dual-agent-original-request-review` 的 raw-request preservation）。
+
+### Mid-dual interruption & resume
+
+If Stage 2 stalls for external reasons (CLI upgrade, auth expiry, Claude Code restart, user-interrupt), maintain a resume-state file. Working copy lives at `/tmp/<dual_name>_state_<date>.md`; **mirror to the packet dir** (`docs/methodology-notes/<dual_name>_packet_<date>/resume_state.md`) on every update — `/tmp` is volatile (wiped on reboot / disk pressure), so the packet dir is the durable source of truth.
+
+State file contents:
+
+- completed scorecards with verdicts + sums, **each annotated `model=<slug>, cli=<ver>`** pulled from session jsonl (see §1 "Model verification oracle"), so cross-session / cross-CLI resume is auditable
+- pending candidate list
+- explicit block cause (if blocked; "none" if clean pause)
+- resume plan (first action on return)
+
+**Write-through discipline**: update the state file **immediately** after each scorecard completes, before dispatching the next one. Do not batch updates — state file drift is the root cause of "I thought C4 was pending but it was already done" bugs (observed 2026-04-25). State file is single source of truth, not session memory's shadow.
+
+**Artifact archival discipline**: all dual working artifacts are evidence, not scratch. `/tmp` is working space only. On any of these boundaries, copy all dual artifacts from `/tmp` into the packet dir and commit:
+
+- Every state file update (mirror resume_state.md)
+- Before any Claude Code restart / session handoff
+- Before any `git commit` touching the packet — skeleton-only commits are insufficient if S1 divergent output or S2 scorecards exist
+
+Mapping convention (packet dir filenames):
+
+- `/tmp/codex_stage1_<topic>_output_<date>.md` → `S1_divergent_output.md`
+- `/tmp/codex_stage2_scorecard_C<n>_<date>.md` → `S2_scorecard_C<n>.md`
+- `/tmp/claude_pre_review_<ID>.md` → `01_claude_pre_review.md` (already in skeleton)
+- `/tmp/<dual_name>_state_<date>.md` → `resume_state.md`
+
+On resume, do **not** re-run completed stages. The sealed pre-review and Stage 1 output remain authoritative across interruptions; re-dispatch only the pending Stage-2 scorecards. Stage 3 synthesis must read all scorecards from the packet dir (not `/tmp`, which may be empty after reboot), because some may have been produced in a prior Claude session.
 
 ### Relation to existing rules
 
