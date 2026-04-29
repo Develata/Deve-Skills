@@ -56,10 +56,7 @@ When Claude dispatches Codex for any analytical task:
 
 ### Rule 4: Claims require artifacts
 
-- A claim about system behavior requires code evidence (file:line showing the logic).
-- A claim about experimental results requires artifact evidence (file:key showing the number).
-- "The script exists" ≠ "the result was produced." Output artifacts must exist.
-- Design intent without executed artifact = 0 credit for that claim.
+Behavior claims need code evidence (file:line); result claims need artifact evidence (file:key). Script existence ≠ result production; design intent without executed artifact = 0 credit. Trail format and verification cost rules: see `dual-agent-original-request-review/SKILL.md` § Verification Discipline.
 
 ## Artifact Staleness Check
 

@@ -84,12 +84,7 @@ If Claude serves as reviewer, it must write the acceptance checklist independent
 
 ## Two-File Handoff
 
-All Codex dispatches use two files to keep Claude's context small and separate raw user intent from Claude's framing:
-
-- `/tmp/codex_user_context.md` — user's recent messages verbatim (last 1-3 turns)
-- `/tmp/codex_task.md` — Claude's instructions (executor or reviewer packet below)
-
-Codex prompt: `"Read /tmp/codex_user_context.md for the raw user request and /tmp/codex_task.md for your task instructions. Execute accordingly."`
+See `codex-orchestration/SKILL.md` § 3 for the full Two-File Handoff protocol (file naming, transport-safety hard rule, parallel dispatch threshold). The Executor / Reviewer Task Packet templates below are what goes into `/tmp/codex_task_<ID>.md`.
 
 ## Verification Discipline
 

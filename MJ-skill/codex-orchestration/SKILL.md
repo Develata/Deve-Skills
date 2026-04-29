@@ -79,20 +79,30 @@ mcp__codex__codex-reply(
 
 ### Model verification oracle
 
-When it matters which codex model / CLI version produced an output (scoring consistency across a batch, audit trails, reproducibility), **do NOT trust model self-report** — LLM introspection hallucinates slugs (observed 2026-04-25: model returned `gpt-5` while session jsonl logged `gpt-5.5`; observed 2026-04-27: model returned `GPT-5 codex-cli 0.125.0` while jsonl logged `gpt-5.5 / 0.125.0` for codex-b and `gpt-5.5 / 0.125.0-alpha.3` for codex-main — the two accounts can sit on different CLI minor versions simultaneously, and `codex --version` reports only one of them depending on which install is on PATH).
+**原则**: LLM cannot reliably report its own model slug or CLI version, and different `CODEX_HOME` accounts can carry different CLI minor versions simultaneously. The single authoritative source is the per-account session jsonl. Any critical dual artifact (scorecard, decision packet, plan-prior or post-impl readout) must verbatim-embed the helper's 5-line stdout in its header, citing `session_path` as the primary anchor.
 
-Authoritative source per account:
+**Authoritative source per account**:
 - codex-main: `~/.codex/sessions/YYYY/MM/DD/rollout-<timestamp>-<threadId>.jsonl`
 - codex-b: `~/.codex-b/sessions/YYYY/MM/DD/rollout-<timestamp>-<threadId>.jsonl`
 
-**Mandatory recording recipe (use the helper, do NOT hand-grep)**: run the skill-bundled helper (`<skill-dir>/scripts/codex_session_meta.sh <threadId>`; canonical path when this skill is installed at user level: `~/.claude/skills/codex-orchestration/scripts/codex_session_meta.sh <threadId>`) and **verbatim-embed its 5-line stdout** into the dual artifact header. The helper handles all `~/.codex*` homes (auto-discovers `~/.codex-b`, `~/.codex-personal`, etc.), uses pipefail-safe grep, and emits a stable key=value block (`model=`, `cli_version=`, `effort=`, `session_path=`, `session_first_ts=`) so any reviewer can re-run the same script against the cited threadId and reproduce the values byte-for-byte.
+**Mandatory recording recipe (use the helper, do NOT hand-grep)**: run `~/.claude/skills/codex-orchestration/scripts/codex_session_meta.sh <threadId>` and verbatim-embed the 5-line stdout (`model= / cli_version= / effort= / session_path= / session_first_ts=`) into the dual artifact header. The helper auto-discovers all `~/.codex*` homes and uses pipefail-safe grep so any reviewer can re-run it against the cited threadId and reproduce values byte-for-byte.
 
-Manual fallback (only if the skill / helper is unavailable in the current environment):
+Manual fallback (only if helper is unavailable):
 - Model slug: `grep -oE '"model":"[^"]*"' <rollout.jsonl> | head -1`
 - CLI version: `head -1 <rollout.jsonl> | python3 -c "import sys,json; print(json.loads(sys.stdin.read())['payload']['cli_version'])"`
 - Reasoning effort (codex-main records this; codex-b currently does not): `grep -oE '"reasoning_effort":"[a-z]+"' <rollout.jsonl> | head -1`
 
-**Hard rule**: any critical dual artifact (scorecard, decision packet, plan-prior or post-impl review readout) MUST contain a Header annotation block populated by the helper's verbatim stdout. The annotation MUST cite the `session_path` line as the primary anchor — that disambiguates which codex home (codex-main vs codex-b) and which exact JSONL was used. Annotations transcribed from Codex's text reply are NOT acceptable; they are subject to silent truncation (see 2026-04-27 codex-main alpha.3 case above where Codex's self-reported `0.125.0` would have lost the alpha suffix had codex-main actually been used for the dual review).
+**校准样例** — what a compliant header looks like:
+```
+model=gpt-5.5
+cli_version=0.125.0-alpha.3
+effort=xhigh
+session_path=/Users/charles/.codex/sessions/2026/04/29/rollout-20260429T172949Z-019dd892-c24d-7321-9820-09d7ecf63e41.jsonl
+session_first_ts=2026-04-29T17:29:49Z
+```
+Verbatim from helper stdout. `session_path` disambiguates which codex home + exact JSONL.
+
+**避坑样例** — Codex's text reply self-reports `GPT-5 codex-cli 0.125.0`; the actual jsonl shows `0.125.0-alpha.3` on codex-main and `0.125.0` on codex-b. Transcribing the text reply silently loses the `alpha.3` suffix and conflates the two accounts. The catch: model self-report is a hallucination surface; jsonl is ground truth.
 
 **Required scaffolds**: instead of recreating the artifact structure each time, copy the matching boundary template from the per-skill templates directory and fill in:
 
@@ -128,6 +138,10 @@ Default role mapping by task type:
   2. `/tmp/codex_task_<ID>.md` — Claude's analysis, scope, constraints, expected output, and non-goals. This is Claude's instruction layer.
   `<ID>` is a short unique suffix (e.g., first 8 chars of a UUID or timestamp) to avoid collisions between concurrent sessions.
   Then pass Codex a short prompt: `"Read /tmp/codex_user_context_<ID>.md for the raw user request and /tmp/codex_task_<ID>.md for your task instructions. Execute accordingly."` This keeps Claude's conversation context small and preserves a clean separation between raw user intent and Claude's framing.
+- **Transport safety hard rule**:
+  - **原则**: any prompt over ~8 KB or containing large pasted artifacts must use file-only handoff (write to `/tmp/codex_*.md`, MCP call sends only the short "Read these two files" instruction). When an MCP call closes unexpectedly, inspect the rollout jsonl's `role=user` entry before treating the result as Codex output — `Connection closed` with anomalous user content means the transport failed *before* Codex saw the task; discard the thread and retry with file-only handoff.
+  - **校准样例**: a 30 KB analytical task → write to `/tmp/codex_task_a3f1.md` + `/tmp/codex_user_context_a3f1.md` → MCP `prompt = "Read /tmp/codex_user_context_a3f1.md and /tmp/codex_task_a3f1.md, execute accordingly."` (~80 char prompt). Rollout jsonl shows the short instruction as `role=user`, Codex reads the files, normal response.
+  - **避坑样例**: ~30 KB raw prompt sent directly through MCP `prompt` parameter → rollout jsonl `role=user` content shows `reply OK` (truncation artifact), followed by `Connection closed`. Result text appears valid but Codex never saw the actual task. Catch mechanism: post-call, grep the jsonl `role=user` entry — if it's not the intended prompt, the thread is dead, restart via file-only.
 - **Always pass `approval-policy`**: Every `mcp__codex__codex` call must include `approval-policy="never"` to prevent interactive approval popups. Omitting this parameter may cause Codex to prompt for every shell command, blocking autonomous execution. **Scope clarification**: `approval-policy="never"` only controls codex's internal shell-command approvals. Claude Code's outer MCP permission layer is separate — each distinct `mcp__codex*` call triggers its own allow/deny prompt unless pre-approved in `settings.local.json` or the session's allow-list. The "never" flag does NOT bypass the outer prompt.
 - **Reuse sessions**: After the first `mcp__codex__codex` call returns a `threadId`, use `mcp__codex__codex-reply` with that `threadId` for follow-up questions in the same domain. This avoids cold-start overhead.
 - **Prefer `read-only` sandbox**: For pure analysis/inspection tasks, pass `sandbox: "read-only"`. This reduces sandbox overhead.
@@ -156,6 +170,51 @@ Claude tokens are expensive, Codex tokens are cheap. Route accordingly:
 - Do not use Codex as the primary orchestrator when Claude is already the top-level agent.
 - When Claude can answer directly from already-loaded context, do not delegate unnecessarily.
 - Use parallel Codex calls for independent subtasks to maximize throughput.
+
+### Model selection
+
+**原则**: MCP tool schema's `model` parameter description carries *illustrative* placeholder slugs, not project recommendations. Default behavior is to **omit** `model` so the call inherits the per-account `~/.codex/config.toml` setting. Explicit override only in three cases: (i) API-key account with non-ChatGPT-allowed slug, (ii) reproducing a historical thread's model for continuity audit, (iii) deliberate regression testing. Before passing any explicit `model`, run the pre-dispatch verification recipe below.
+
+**校准样例** — a compliant analytical-task dispatch:
+```
+mcp__codex-main__codex(
+  prompt="Read /tmp/codex_task_a3f1.md ...",
+  approval-policy="never",
+  sandbox="read-only",
+  cwd="${CLAUDE_PROJECT_DIR}"
+  # no `model` key — inherits codex-main config.toml gpt-5.5
+)
+```
+Verification trail (cite in artifact): `grep '^model\s*=' ~/.codex/config.toml` → `model = "gpt-5.5"`. Account default matches project's dominant historical pattern. No override needed.
+
+**避坑样例** — copying from the schema description without verifying:
+```
+mcp__codex-main__codex(prompt=..., model="gpt-5.2")  # ← pulled from schema example text
+```
+The schema description reads "e.g. 'gpt-5.2', 'gpt-5.2-codex'"; the slug is illustrative. Account default is `gpt-5.5`; project's historical dual artifacts use `gpt-5.5`. Override silently routes to a different model than every prior dual in the audit trail, breaking cross-batch consistency. Catch mechanism: the verification recipe forces a `grep` against `config.toml` and historical artifacts before any explicit override — if the slug doesn't match either, abort.
+
+**Pre-dispatch verification recipe** (artifact-grounded; do this before passing any explicit
+`model` value):
+
+```bash
+# 1. account default (the one your call will inherit if model is omitted)
+grep -E '^model\s*=' ~/.codex/config.toml          # codex-main default
+grep -E '^model\s*=' ~/.codex-b/config.toml        # codex-b default (if exists)
+
+# 2. project-historical usage distribution (cite-don't-guess)
+grep -rh '^model=' outputs/reports/*/run_*/dual* \
+    outputs/reports/*/run_*/'(a)'* \
+    outputs/reports/*/run_*/'(b)'* \
+    outputs/reports/*/run_*/'(c)'* 2>/dev/null \
+  | sort | uniq -c | sort -rn
+
+# 3. effort distribution (same files)
+grep -rh '^effort=' <same paths as above> | sort | uniq -c | sort -rn
+```
+
+Pick the model that matches (i) the account's config.toml default OR (ii) the project's
+dominant historical pattern. Cite the verification step in the dispatch artifact's
+"dispatch configuration" block so future audits can re-verify.
 
 ### Reasoning effort tier
 
@@ -295,6 +354,7 @@ Non-goals: Deep analysis — that comes in Round 2.
 ## 7. Anti-Patterns
 
 - Sending Codex a prompt that requires the full conversation context it doesn't have.
+- Passing a large pasted prompt directly through MCP instead of a file-only handoff; `Connection closed` plus a rollout `role=user` entry like `reply OK` indicates transport failure, not a valid Codex response.
 - Asking Codex to re-read files Claude already has in context.
 - Using `workspace-write` sandbox for read-only tasks.
 - Launching a single large Codex call instead of multiple narrow parallel calls.
