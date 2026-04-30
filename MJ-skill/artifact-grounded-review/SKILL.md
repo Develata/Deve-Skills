@@ -8,7 +8,7 @@ description: Enforces that both Claude and Codex must read actual code and resul
 ## Scope
 
 This protocol applies to **all dual-agent analytical tasks**, not just scoring:
-- Dual review / 审稿 / evaluation
+- Dual review / peer review / evaluation
 - Research quality assessment
 - Bug investigation and root-cause analysis
 - Architecture review and design critique
@@ -134,8 +134,8 @@ Before diagnosing or judging:
 |---|---:|---:|---:|---|
 
 ## Overall
-- 毕设: X/10
-- 期刊: X/10
+- Thesis: X/10
+- Journal: X/10
 
 ## Integrity Risks
 1. [risk + specific file:line or artifact:key]

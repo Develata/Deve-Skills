@@ -57,7 +57,7 @@ Exemptions to main-first (state inline at call site): parallel scoring batches t
 
 ### Model verification oracle
 
-**原则**: LLM cannot reliably report its own model slug or CLI version, and different `CODEX_HOME` accounts can carry different CLI minor versions simultaneously. The single authoritative source is the per-account session jsonl. Critical dual artifacts should verbatim-embed the helper's 5-line stdout in their header, citing `session_path` as the primary anchor.
+**Principle**: LLM cannot reliably report its own model slug or CLI version, and different `CODEX_HOME` accounts can carry different CLI minor versions simultaneously. The single authoritative source is the per-account session jsonl. Critical dual artifacts should verbatim-embed the helper's 5-line stdout in their header, citing `session_path` as the primary anchor.
 
 **Authoritative source per account**:
 - `$CODEX_HOME/sessions/YYYY/MM/DD/rollout-<timestamp>-<session-id>.jsonl` (default `~/.codex` if `CODEX_HOME` unset)
@@ -71,7 +71,7 @@ head -1 <rollout.jsonl> | python3 -c "import sys,json; print(json.loads(sys.stdi
 grep -oE '"reasoning_effort":"[a-z]+"' <rollout.jsonl> | head -1
 ```
 
-**校准样例** — what a compliant header looks like:
+**Calibration example** — what a compliant header looks like:
 ```
 model=gpt-5.5
 cli_version=0.125.0
@@ -81,7 +81,7 @@ session_first_ts=2026-04-29T17:29:49Z
 ```
 Verbatim from helper stdout. `session_path` disambiguates which `CODEX_HOME` and which exact JSONL.
 
-**避坑样例** — Codex's text reply self-reports `GPT-5 codex-cli 0.125.0`; jsonl shows `0.125.0-alpha.3` on one home and `0.125.0` on another. Transcribing the text reply silently loses the `alpha.3` suffix and conflates the two accounts. The catch: model self-report is a hallucination surface; jsonl is ground truth.
+**Counter-example** — Codex's text reply self-reports `GPT-5 codex-cli 0.125.0`; jsonl shows `0.125.0-alpha.3` on one home and `0.125.0` on another. Transcribing the text reply silently loses the `alpha.3` suffix and conflates the two accounts. The catch: model self-report is a hallucination surface; jsonl is ground truth.
 
 ### Recommended scaffolds
 
@@ -146,9 +146,9 @@ Claude tokens are expensive, codex tokens are cheap. Route accordingly:
 
 ### Model selection
 
-**原则**: Default behavior is to **omit** `-m` so the call inherits the per-account `~/.codex/config.toml` setting. Explicit `-m` only when (i) API-key account with non-ChatGPT-allowed slug, (ii) reproducing a historical session's model for continuity audit, or (iii) deliberate regression testing. Before passing any explicit `-m`, run the verification recipe.
+**Principle**: Default behavior is to **omit** `-m` so the call inherits the per-account `~/.codex/config.toml` setting. Explicit `-m` only when (i) API-key account with non-ChatGPT-allowed slug, (ii) reproducing a historical session's model for continuity audit, or (iii) deliberate regression testing. Before passing any explicit `-m`, run the verification recipe.
 
-**校准样例** — a compliant analytical-task dispatch:
+**Calibration example** — a compliant analytical-task dispatch:
 ```bash
 codex exec --full-auto -s read-only -C "$PWD" \
   -o /tmp/codex_result_a3f1.md \
@@ -157,7 +157,7 @@ codex exec --full-auto -s read-only -C "$PWD" \
 ```
 Verification trail (cite in artifact): `grep '^model\s*=' ~/.codex/config.toml` → `model = "gpt-5.5"`. Account default matches project's dominant historical pattern.
 
-**避坑样例** — copying from a tool-schema description without verifying:
+**Counter-example** — copying from a tool-schema description without verifying:
 ```bash
 codex exec -m gpt-5.2 ...   # ← pulled from MCP schema example text
 ```
@@ -364,7 +364,7 @@ Locations:
 
 ### PDF admission gate
 
-**原则**: full PDFs dilute context and degrade subsequent decisions. Before reading any PDF or dispatching one to codex, answer three questions:
+**Principle**: full PDFs dilute context and degrade subsequent decisions. Before reading any PDF or dispatching one to codex, answer three questions:
 
 1. Which Level (triage / method / full)?
 2. Is PDF the only format, or is TeX / HTML / Markdown also available?
