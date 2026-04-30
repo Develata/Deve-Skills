@@ -322,7 +322,7 @@ Skip a section only if it does not apply. Never skip Header, §3 readout, §6, o
 
 ---
 
-## Hard rules — violations make the readout reject-grade
+## Reject-grade signals (any of these makes the readout fail the bar)
 
 1. **No function-name lists.** "通过 `compute_spearman_per_seed_per_flight()` 计算 ρ" is forbidden. Describe as math: "对 157 条 cohort flights 上的残差计算 Spearman ρ(residual, alert_count), 在 3 个 seed 上独立训练后报告均值 ± std." Code pointers (file:line) only in 附录.
 2. **No `def` / class blocks** in body. Reproducibility pseudocode → 附录 fenced block, never §1/2/3 method.

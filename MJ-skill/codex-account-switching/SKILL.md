@@ -1,24 +1,27 @@
 ---
 name: codex-account-switching
-description: Multi-account Codex MCP isolation on Claude Desktop and Claude CLI. Use when more than one OpenAI account / API key needs to coexist on the same machine, or when a task must explicitly run on one specific account.
+description: Multi-account Codex isolation via per-account CODEX_HOME. Works for both direct codex CLI invocation (`CODEX_HOME=~/.codex-b codex exec ...`) and MCP server setup (Claude Desktop / Claude CLI MCP entries). Use when more than one OpenAI account / API key needs to coexist on the same machine.
 ---
 
-# Codex Multi-Account MCP Switching
+# Codex Multi-Account Switching
 
 ## When to Use
 
-- Two or more Codex accounts (ChatGPT and/or API key) need to coexist on the same machine
-- A task must run on one specific account (rate-limit isolation, billing separation, scoped keys)
-- You see "wrong account active" symptoms after `codex login`
+- Two or more Codex accounts (ChatGPT and/or API key) need to coexist on the same machine.
+- A task should run on one specific account (rate-limit isolation, billing separation, scoped keys).
+- You see "wrong account active" symptoms after `codex login`.
 
 ## When NOT to Use
 
-- Single-account workflows — keep the original `codex` MCP entry as-is
-- Temporary one-off account switches — `CODEX_HOME=<path> codex ...` ad-hoc is fine without this skill
+- Single-account workflows — keep the original setup as-is.
+- One-off ad-hoc switches where `CODEX_HOME=<path> codex ...` for a single command is enough — no skill needed.
 
 ## Core Model
 
-One **`CODEX_HOME` per account**. Each home holds its own `auth.json`, `config.toml`, session cache. Each account is exposed via a **dedicated MCP server name** in both Claude Desktop and Claude CLI, so prompts pick the account by name and never collide.
+One **`CODEX_HOME` per account**. Each home holds its own `auth.json`, `config.toml`, session cache. Two ways to route a call to a specific account:
+
+1. **Direct CLI** (preferred default): prefix the invocation — `CODEX_HOME=~/.codex-b codex exec ...`. No MCP setup required; the home dir + `codex login` is enough.
+2. **Named MCP server**: register a dedicated MCP entry per account (e.g. `mcp__codex-main__codex` / `mcp__codex-b__codex`), so prompts can pick the account by tool name. Required if Claude Desktop / Claude CLI delegates via MCP rather than Bash.
 
 | Account role | `CODEX_HOME` | MCP server name |
 |---|---|---|

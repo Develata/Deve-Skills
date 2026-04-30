@@ -126,7 +126,7 @@ Before diagnosing or judging:
 ### For scored evaluations
 
 ```
-## Evidence Gaps (MUST be first section)
+## Evidence Gaps (place first)
 - [claim] — [missing artifact or code evidence]
 
 ## Dimension Scores
@@ -144,7 +144,7 @@ Before diagnosing or judging:
 ### For non-scoring analytical tasks (bug investigation, architecture review, research discussion, etc.)
 
 ```
-## Evidence Gaps (MUST be first section)
+## Evidence Gaps (place first)
 - [claim] — [missing artifact or code evidence]
 - [artifact] — staleness status: Fresh / Stale / Unknown
 
