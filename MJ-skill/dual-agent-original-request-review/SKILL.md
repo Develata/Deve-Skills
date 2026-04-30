@@ -9,17 +9,19 @@ Use this skill when the user explicitly wants multiple agents to work from the s
 
 ## When to Use
 
-Dual-agent mode is a **boundary protocol**. The three boundary triggers below are **mandatory** — skipping them means the workflow is procedurally incomplete, and any paper-facing wording / final verdict / source-trace conclusion / empirical numerical claim derived without the corresponding dual is **not admissible** until the dual is run.
+Dual-agent mode is a **boundary protocol**. Hardness lives in the harness `UserPromptSubmit` hook (rule 3), not this skill — the hook enforces *whether* dual must run; this skill describes *how* to run it.
 
-### Mandatory triggers (cannot be skipped)
+### Boundary triggers (hook-enforced)
+
+The three boundaries that the harness hook gates as hard:
 
 - **(a) Requirement boundary**: major direction shift, cross-stage alignment, or overturning a ≥3-day-old self-authored pre-reg as a load-bearing argument. → requirement-side alignment review.
 - **(b) Decision node**: overturning a plan premise that previously passed dual, switching paths, or rejecting an approach. → plan-prior review.
-- **(c) Post-implementation verification**: after substantive code or readout production, the reviewer **must independently re-run the source-code trace and independently reproduce empirical numbers in the readout**. Acceptance gate: reviewer's independent re-derivation must converge on the same number / the same trace conclusion before the verdict is admitted into paper-facing context. **Not acceptable substitutes**: executor's self-assessment; single-source numbers; caveats embedded in commit body; "I caught the issue myself" as a stand-in for an independent second opinion.
+- **(c) Post-implementation verification**: after substantive code or readout production, the reviewer independently re-runs the source-code trace and independently reproduces empirical numbers in the readout. Acceptance gate: reviewer's independent re-derivation converges on the same number / same trace conclusion before the verdict enters paper-facing context. Substitutes that don't qualify: executor's self-assessment; single-source numbers; caveats embedded in commit body; "I caught the issue myself" as a stand-in for an independent second opinion.
 
-If (a), (b), or (c) is triggered and dual is not run in the same session, the **next session inheriting the work must run the missed dual before advancing any paper-facing claim derived from the unreviewed work** — the burden does not expire.
+Cross-session burden: if (a)/(b)/(c) triggered in a prior session and dual wasn't run, the next session inheriting the work runs the missed dual before advancing any paper-facing claim derived from the unreviewed work. The harness hook re-injects this expectation each session.
 
-### Other valid triggers
+### Other useful triggers (skill-level recommendation, not hook-gated)
 
 - **High paraphrase-drift risk**: the user's raw request has subtle wording that an executor's restatement is likely to lose.
 - **Explicit user request**: the user wants two agents on the same raw request.
@@ -32,14 +34,14 @@ If (a), (b), or (c) is triggered and dual is not run in the same session, the **
 
 Note: "routine implementation" is NOT an excuse to skip (c). Once code/readout is finalized, (c) triggers regardless of how routine the implementation felt.
 
-## Core Principles
+## Core defaults
 
-1. Both executor and reviewer must receive the raw user request verbatim.
+1. Both executor and reviewer receive the raw user request verbatim (no compression before forwarding).
 2. Reviewer judges against "raw request + acceptance checklist + actual output," not executor's paraphrase alone.
-3. Executor and reviewer must have asymmetric roles — avoid duplicate work.
-4. All key assumptions must be stated explicitly — never package guesses as confirmed facts.
-5. If reviewer finds deviation, report the specific gap, evidence, and impact rather than giving vague endorsement.
-6. Any factual claim about codebase, data, or completed work that can change scope, implementation, review verdict, final status, or conflict outcome must be either verified with a traceable trail or explicitly marked as an assumption. See **Verification Discipline** below.
+3. Executor and reviewer have asymmetric roles — avoid duplicate work.
+4. State key assumptions explicitly — don't package guesses as confirmed facts.
+5. If reviewer finds deviation, report the specific gap, evidence, and impact — vague endorsement is not enough.
+6. Any factual claim that affects scope / implementation / review verdict / final status / conflict outcome is either verified with a traceable trail or explicitly marked as an assumption. See **Verification Discipline** below.
 
 ## Default Role Assignment
 
@@ -47,7 +49,7 @@ Note: "routine implementation" is NOT an excuse to skip (c). Once code/readout i
 - Executor: implementation, local verification, deliverable production
 - Reviewer: independent requirement decomposition, acceptance checklist, deviation check
 
-If Claude serves as reviewer, it must write the acceptance checklist independently before seeing executor output.
+When Claude serves as reviewer, write the acceptance checklist independently before seeing executor output.
 
 ## Standard Process
 
@@ -76,7 +78,7 @@ If Claude serves as reviewer, it must write the acceptance checklist independent
    - Raw request verbatim
    - Merged acceptance checklist
    - Executor's actual output
-   - Verification trail for any claim that affects acceptance, rejection, or major criticism — Claude must independently verify critical claims (do not rely on executor's trail alone)
+   - Verification trail for any claim that affects acceptance, rejection, or major criticism — Claude independently verifies critical claims (don't rely on executor's trail alone)
 6. **Final summary distinguishes three statuses**
    - Met
    - Partially met or assumption-dependent
@@ -84,16 +86,16 @@ If Claude serves as reviewer, it must write the acceptance checklist independent
 
 ## Two-File Handoff
 
-See `codex-orchestration/SKILL.md` § 3 for the full Two-File Handoff protocol (file naming, transport-safety hard rule, parallel dispatch threshold). The Executor / Reviewer Task Packet templates below are what goes into `/tmp/codex_task_<ID>.md`.
+See `codex-orchestration/SKILL.md` § 3 for the Two-File Handoff defaults (file naming, large-prompt handling, parallel dispatch threshold). The Executor / Reviewer Task Packet templates below are what goes into `/tmp/codex_task_<ID>.md`.
 
 ## Verification Discipline
 
-When a factual claim about the codebase, data, or completed work could change scope, implementation, review verdict, final status, or conflict outcome, that claim must be either verified with a traceable trail or explicitly marked as an assumption.
+When a factual claim about the codebase, data, or completed work could change scope, implementation, review verdict, final status, or conflict outcome, the claim is either verified with a traceable trail or explicitly marked as an assumption.
 
-### When verification is mandatory
+### When to verify
 
-- Any claim that affects checklist content, implementation direction, review verdict, final summary, or conflict resolution
-- Any rejection or approval of a critical claim made by the other party
+- Claims that affect checklist content, implementation direction, review verdict, final summary, or conflict resolution.
+- Any rejection or approval of a critical claim made by the other party.
 
 ### When verification is NOT required
 
@@ -105,7 +107,7 @@ When a factual claim about the codebase, data, or completed work could change sc
 ### Who performs verification
 
 - The agent making the claim performs the first verification using the cheapest sufficient method
-- The agent challenging or relying on a critical claim must independently verify it — do not trust the other party's trail alone for verdict-affecting claims
+- The agent challenging or relying on a critical claim independently verifies it — don't trust the other party's trail alone for verdict-affecting claims
 - Conflict resolution: confidence and persistence are not tiebreakers; verified evidence is
 
 ### How (ordered by cost — prefer the cheapest sufficient)
@@ -134,8 +136,8 @@ If verification cost would exceed roughly 5 minutes (heavy experiment, external 
 
 ### Failure mode
 
-- If verification cannot be completed (no read access, external system, blocked), mark the item `assumption-dependent` or `blocked` with the missing access named explicitly
-- Never present an unverifiable claim as `confirmed`
+- If verification cannot be completed (no read access, external system, blocked), mark the item `assumption-dependent` or `blocked` with the missing access named explicitly.
+- Don't present an unverifiable claim as `confirmed`.
 
 ## Executor Task Packet Template (`/tmp/codex_task.md`)
 
@@ -205,9 +207,9 @@ Review rules:
   - **Requirement interpretation dispute** → go back to the raw request and compare item by item; if ambiguity remains, surface it to the user — neither role may decide unilaterally
   - **Factual dispute about code, data, artifacts, or completed work** → resolve by verification against ground truth; confidence or persistence is not a tiebreaker
   - **Output visibility dispute** → provide the complete output before continuing review
-- For factual disputes, the party challenging a claim must provide counter-evidence (file:line, command + output, or artifact path) or show that the original trail is insufficient; vague rejection is not acceptable
-- If verification is impossible with current access, report the conflict as unresolved and `assumption-dependent` rather than picking a side
-- After verification, both parties must update their conclusion to match the verified ground truth, even if it contradicts their original position
+- For factual disputes, the party challenging a claim provides counter-evidence (file:line, command + output, or artifact path) or shows that the original trail is insufficient; vague rejection doesn't move the verdict.
+- If verification is impossible with current access, report the conflict as unresolved and `assumption-dependent` rather than picking a side.
+- After verification, both parties update their conclusion to match the verified ground truth, even if it contradicts their original position.
 
 ## Stuck Detection & Recovery
 
@@ -239,7 +241,7 @@ When Claude or Codex is making no forward progress, use this self-diagnosis prot
 
 ### Anti-pattern: silent retry loops
 
-Never retry the same failing operation more than twice without changing something. The third attempt must use a different approach, or the task must be escalated.
+Avoid retrying the same failing operation more than twice without changing something. The third attempt should use a different approach, or escalate to the user.
 
 ## Anti-Patterns
 
@@ -253,7 +255,7 @@ Never retry the same failing operation more than twice without changing somethin
 
 ## Final Report Format
 
-Every final report must include:
+A final report typically includes:
 
 - Whether dual-agent mode was used
 - Reason for using or not using it
