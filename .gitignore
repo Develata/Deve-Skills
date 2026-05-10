@@ -22,5 +22,4 @@ package.json
 bun.lock
 
 
-.gitignore
 .idea/ 
