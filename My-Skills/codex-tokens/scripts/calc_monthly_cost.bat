@@ -5,9 +5,9 @@ cd /d "%~dp0"
 echo Calculating monthly CostUSD...
 echo.
 
-if not exist "%~dp0codex_tokens.py" (
+if not exist "%~dp0calc_monthly_cost.py" (
     echo ERROR: Python script was not found:
-    echo %~dp0codex_tokens.py
+    echo %~dp0calc_monthly_cost.py
     echo.
     pause
     exit /b 1
@@ -15,9 +15,9 @@ if not exist "%~dp0codex_tokens.py" (
 
 where python >nul 2>nul
 if %errorlevel% equ 0 (
-    python "%~dp0codex_tokens.py" summary
+    python "%~dp0calc_monthly_cost.py"
 ) else (
-    py -3 "%~dp0codex_tokens.py" summary
+    py -3 "%~dp0calc_monthly_cost.py"
 )
 
 if errorlevel 1 (

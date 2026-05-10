@@ -5,15 +5,17 @@ description: Collect and audit Codex token usage with a bundled Python CLI and o
 
 # Codex Token Usage Audit
 
-Use `scripts/codex_tokens.py` to collect Codex token usage into daily audit logs and calculate monthly `CostUSD` totals.
+Use `scripts/codex_tokens.py` to collect Codex token usage into daily audit logs. Use `scripts/calc_monthly_cost.py` to calculate monthly `CostUSD` totals.
 
 ## Files
 
 ```text
 scripts/
-├─ codex_tokens.py
-├─ run_codex_tokens.bat
-└─ calc_monthly_cost.bat
+├─ audit_format.py          # shared audit row parser and Markdown format
+├─ codex_tokens.py          # cross-platform collect CLI
+├─ calc_monthly_cost.py     # cross-platform summary CLI
+├─ run_codex_tokens.bat     # Windows collect launcher
+└─ calc_monthly_cost.bat    # Windows summary launcher
 ```
 
 ## Requirements
@@ -54,10 +56,10 @@ Each daily log uses this row format:
 Run after collecting daily usage:
 
 ```bash
-python3 scripts/codex_tokens.py summary
+python3 scripts/calc_monthly_cost.py
 ```
 
-Windows double-click entry:
+Use this command on macOS, Linux, and WSL. Windows double-click entry:
 
 ```text
 scripts/calc_monthly_cost.bat

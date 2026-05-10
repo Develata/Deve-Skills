@@ -3,35 +3,13 @@ import argparse
 import datetime as dt
 import json
 import subprocess
-from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+from audit_format import HEADER, Record, cost_equal, decimal_from, parse_required_token_line, token_line
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_DIR = SCRIPT_DIR / "data"
-SUMMARY_FILE = SCRIPT_DIR / "CostUSD.md"
-EPSILON = Decimal("0.000001")
-ALLOWED_STATUSES = {"NEW", "UPDATED", "CONFLICT"}
-HEADER = [
-    "| Date | InputTokens | CachedInputTokens | OutputTokens | ReasoningOutputTokens | TotalTokens | CostUSD | Models | FallbackModels | Status |",
-    "|------|-------------|-------------------|--------------|-----------------------|-------------|---------|--------|----------------|--------|",
-]
-
-
-@dataclass(frozen=True)
-class Record:
-    date: str
-    input_tokens: int
-    cached_input_tokens: Optional[int]
-    output_tokens: int
-    reasoning_output_tokens: Optional[int]
-    total_tokens: int
-    cost_usd: Decimal
-    models: Optional[Tuple[str, ...]] = None
-    fallback_models: Optional[Tuple[str, ...]] = None
-    status: str = ""
 
 
 def parse_args() -> argparse.Namespace:
@@ -42,8 +20,6 @@ def parse_args() -> argparse.Namespace:
     collect.add_argument("--since-days", type=positive_int, default=40)
     collect.add_argument("--align-window", type=positive_int, default=2)
     collect.add_argument("--json-file", type=Path, help="Read ccusage JSON from a file instead of bunx.")
-
-    subparsers.add_parser("summary", help="Calculate monthly CostUSD totals.")
     return parser.parse_args()
 
 
@@ -57,18 +33,7 @@ def positive_int(value: str) -> int:
     return parsed
 
 
-def decimal_from(value: Any) -> Decimal:
-    try:
-        return Decimal(str(value))
-    except (InvalidOperation, ValueError) as exc:
-        raise ValueError(f"invalid CostUSD value: {value!r}") from exc
-
-
-def cost_equal(left: Decimal, right: Decimal) -> bool:
-    return abs(left - right) < EPSILON
-
-
-def compare_cost(left: Decimal, right: Decimal) -> int:
+def compare_cost(left: Any, right: Any) -> int:
     if left < right:
         return -1
     if left > right:
@@ -106,66 +71,6 @@ def record_from_day(day: Dict[str, Any]) -> Record:
         models=model_names,
         fallback_models=fallback_names,
     )
-
-
-def token_line(record: Record, status: str) -> str:
-    cached = "" if record.cached_input_tokens is None else str(record.cached_input_tokens)
-    reasoning = "" if record.reasoning_output_tokens is None else str(record.reasoning_output_tokens)
-    models = "<br>".join(record.models or ()) or "-"
-    fallback_models = "<br>".join(record.fallback_models or ()) or "-"
-    return (
-        f"| {record.date} | {record.input_tokens} | {cached} | {record.output_tokens} | "
-        f"{reasoning} | {record.total_tokens} | {record.cost_usd} | {models} | "
-        f"{fallback_models} | {status} |"
-    )
-
-
-def parse_optional_int(value: str) -> Optional[int]:
-    text = value.strip()
-    return int(text) if text else None
-
-
-def parse_models(value: str) -> Optional[Tuple[str, ...]]:
-    text = value.strip()
-    if not text:
-        return None
-    if text == "-":
-        return tuple()
-    text = text.replace("<br />", "<br>").replace("<br/>", "<br>")
-    return tuple(item.strip() for item in text.split("<br>") if item.strip())
-
-
-def parse_token_line(line: str) -> Optional[Record]:
-    if not line.startswith("|"):
-        return None
-    parts = [part.strip() for part in line.split("|")]
-    if len(parts) != 12 or not parts[1].isdigit() or len(parts[1]) != 8:
-        return None
-    status = parts[10]
-    if status not in ALLOWED_STATUSES:
-        return None
-    try:
-        return Record(
-            date=parts[1],
-            input_tokens=int(parts[2]),
-            cached_input_tokens=parse_optional_int(parts[3]),
-            output_tokens=int(parts[4]),
-            reasoning_output_tokens=parse_optional_int(parts[5]),
-            total_tokens=int(parts[6]),
-            cost_usd=decimal_from(parts[7]),
-            models=parse_models(parts[8]),
-            fallback_models=parse_models(parts[9]),
-            status=status,
-        )
-    except (IndexError, ValueError):
-        return None
-
-
-def parse_required_token_line(path: Path, line_number: int, line: str) -> Record:
-    record = parse_token_line(line)
-    if record is None:
-        raise ValueError(f"invalid audit row in {path} line {line_number}: {line}")
-    return record
 
 
 def optional_field_aligned(old: Optional[Any], new: Optional[Any]) -> bool:
@@ -292,37 +197,10 @@ def collect(args: argparse.Namespace) -> None:
     print(f"DONE. Data directory: {DATA_DIR}")
 
 
-def summary() -> None:
-    if not DATA_DIR.exists():
-        raise FileNotFoundError(f"data directory was not found: {DATA_DIR}")
-    output = ["| Month | Days | CostUSD |", "|-------|------|---------|"]
-    grand_total = Decimal("0")
-    for path in sorted(DATA_DIR.glob("*.md")):
-        if len(path.stem) != 6 or not path.stem.isdigit():
-            continue
-        total = Decimal("0")
-        days = 0
-        for index, line in enumerate(path.read_text(encoding="utf-8").splitlines()):
-            if index < len(HEADER) or not line.strip():
-                continue
-            record = parse_required_token_line(path, index + 1, line)
-            if record.status != "CONFLICT":
-                total += record.cost_usd
-                days += 1
-        grand_total += total
-        output.append(f"| {path.stem} | {days} | {total:.6f} |")
-    output.append(f"| TOTAL | - | {grand_total:.6f} |")
-    SUMMARY_FILE.write_text("\n".join(output) + "\n", encoding="utf-8")
-    print(f"DONE. Monthly cost summary written to: {SUMMARY_FILE}")
-    print(f"TOTAL CostUSD: {grand_total:.6f}")
-
-
 def main() -> None:
     args = parse_args()
     if args.command == "collect":
         collect(args)
-    elif args.command == "summary":
-        summary()
 
 
 if __name__ == "__main__":
