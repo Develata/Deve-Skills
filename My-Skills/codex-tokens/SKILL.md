@@ -83,6 +83,8 @@ Interpret statuses as follows:
 
 Exclude `CONFLICT` rows from `scripts/CostUSD.md`.
 
+Fail on malformed non-empty audit rows instead of silently skipping them.
+
 ## Safety Notes
 
 Run `collect` only when the user wants to query local Codex usage data. Do not fabricate usage data. If `bunx @ccusage/codex@latest` fails or returns unexpected JSON, report the failure before changing audit files.

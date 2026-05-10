@@ -13,6 +13,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 DATA_DIR = SCRIPT_DIR / "data"
 SUMMARY_FILE = SCRIPT_DIR / "CostUSD.md"
 EPSILON = Decimal("0.000001")
+ALLOWED_STATUSES = {"NEW", "UPDATED", "CONFLICT"}
 HEADER = [
     "| Date | InputTokens | CachedInputTokens | OutputTokens | ReasoningOutputTokens | TotalTokens | CostUSD | Models | FallbackModels | Status |",
     "|------|-------------|-------------------|--------------|-----------------------|-------------|---------|--------|----------------|--------|",
@@ -138,7 +139,10 @@ def parse_token_line(line: str) -> Optional[Record]:
     if not line.startswith("|"):
         return None
     parts = [part.strip() for part in line.split("|")]
-    if len(parts) < 12 or not parts[1].isdigit() or len(parts[1]) != 8:
+    if len(parts) != 12 or not parts[1].isdigit() or len(parts[1]) != 8:
+        return None
+    status = parts[10]
+    if status not in ALLOWED_STATUSES:
         return None
     try:
         return Record(
@@ -151,10 +155,17 @@ def parse_token_line(line: str) -> Optional[Record]:
             cost_usd=decimal_from(parts[7]),
             models=parse_models(parts[8]),
             fallback_models=parse_models(parts[9]),
-            status=parts[10],
+            status=status,
         )
     except (IndexError, ValueError):
         return None
+
+
+def parse_required_token_line(path: Path, line_number: int, line: str) -> Record:
+    record = parse_token_line(line)
+    if record is None:
+        raise ValueError(f"invalid audit row in {path} line {line_number}: {line}")
+    return record
 
 
 def optional_field_aligned(old: Optional[Any], new: Optional[Any]) -> bool:
@@ -208,8 +219,10 @@ def read_month_file(path: Path) -> Tuple[List[str], Dict[str, Record], Dict[str,
     trusted: Dict[str, Record] = {}
     indexes: Dict[str, int] = {}
     for index, line in enumerate(lines):
-        record = parse_token_line(line)
-        if record and record.status != "CONFLICT":
+        if index < len(HEADER) or not line.strip():
+            continue
+        record = parse_required_token_line(path, index + 1, line)
+        if record.status != "CONFLICT":
             lines[index] = token_line(record, record.status)
             trusted[record.date] = record
             indexes[record.date] = index
@@ -289,9 +302,11 @@ def summary() -> None:
             continue
         total = Decimal("0")
         days = 0
-        for line in path.read_text(encoding="utf-8").splitlines():
-            record = parse_token_line(line)
-            if record and record.status != "CONFLICT":
+        for index, line in enumerate(path.read_text(encoding="utf-8").splitlines()):
+            if index < len(HEADER) or not line.strip():
+                continue
+            record = parse_required_token_line(path, index + 1, line)
+            if record.status != "CONFLICT":
                 total += record.cost_usd
                 days += 1
         grand_total += total
