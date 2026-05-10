@@ -14,8 +14,8 @@ DATA_DIR = SCRIPT_DIR / "data"
 SUMMARY_FILE = SCRIPT_DIR / "CostUSD.md"
 EPSILON = Decimal("0.000001")
 HEADER = [
-    "| Date | InputTokens | OutputTokens | TotalTokens | CostUSD | Status |",
-    "|------|-------------|--------------|-------------|---------|--------|",
+    "| Date | InputTokens | CachedInputTokens | OutputTokens | ReasoningOutputTokens | TotalTokens | CostUSD | Models | FallbackModels | Status |",
+    "|------|-------------|-------------------|--------------|-----------------------|-------------|---------|--------|----------------|--------|",
 ]
 
 
@@ -23,9 +23,13 @@ HEADER = [
 class Record:
     date: str
     input_tokens: int
+    cached_input_tokens: Optional[int]
     output_tokens: int
+    reasoning_output_tokens: Optional[int]
     total_tokens: int
     cost_usd: Decimal
+    models: Optional[Tuple[str, ...]] = None
+    fallback_models: Optional[Tuple[str, ...]] = None
     status: str = ""
 
 
@@ -85,47 +89,88 @@ def parse_date(value: str) -> str:
 
 def record_from_day(day: Dict[str, Any]) -> Record:
     date = parse_date(day["date"])
+    models = day.get("models") or {}
+    model_names = tuple(sorted(str(name) for name in models))
+    fallback_names = tuple(
+        sorted(str(name) for name, model in models.items() if model.get("isFallback"))
+    )
     return Record(
         date=date,
         input_tokens=int(day["inputTokens"]),
+        cached_input_tokens=int(day.get("cachedInputTokens", 0)),
         output_tokens=int(day["outputTokens"]),
+        reasoning_output_tokens=int(day.get("reasoningOutputTokens", 0)),
         total_tokens=int(day["totalTokens"]),
         cost_usd=decimal_from(day["costUSD"]),
+        models=model_names,
+        fallback_models=fallback_names,
     )
 
 
 def token_line(record: Record, status: str) -> str:
+    cached = "" if record.cached_input_tokens is None else str(record.cached_input_tokens)
+    reasoning = "" if record.reasoning_output_tokens is None else str(record.reasoning_output_tokens)
+    models = "<br>".join(record.models or ()) or "-"
+    fallback_models = "<br>".join(record.fallback_models or ()) or "-"
     return (
-        f"| {record.date} | {record.input_tokens} | {record.output_tokens} | "
-        f"{record.total_tokens} | {record.cost_usd} | {status} |"
+        f"| {record.date} | {record.input_tokens} | {cached} | {record.output_tokens} | "
+        f"{reasoning} | {record.total_tokens} | {record.cost_usd} | {models} | "
+        f"{fallback_models} | {status} |"
     )
+
+
+def parse_optional_int(value: str) -> Optional[int]:
+    text = value.strip()
+    return int(text) if text else None
+
+
+def parse_models(value: str) -> Optional[Tuple[str, ...]]:
+    text = value.strip()
+    if not text:
+        return None
+    if text == "-":
+        return tuple()
+    text = text.replace("<br />", "<br>").replace("<br/>", "<br>")
+    return tuple(item.strip() for item in text.split("<br>") if item.strip())
 
 
 def parse_token_line(line: str) -> Optional[Record]:
     if not line.startswith("|"):
         return None
     parts = [part.strip() for part in line.split("|")]
-    if len(parts) < 8 or not parts[1].isdigit() or len(parts[1]) != 8:
+    if len(parts) < 12 or not parts[1].isdigit() or len(parts[1]) != 8:
         return None
     try:
         return Record(
             date=parts[1],
             input_tokens=int(parts[2]),
-            output_tokens=int(parts[3]),
-            total_tokens=int(parts[4]),
-            cost_usd=decimal_from(parts[5]),
-            status=parts[6],
+            cached_input_tokens=parse_optional_int(parts[3]),
+            output_tokens=int(parts[4]),
+            reasoning_output_tokens=parse_optional_int(parts[5]),
+            total_tokens=int(parts[6]),
+            cost_usd=decimal_from(parts[7]),
+            models=parse_models(parts[8]),
+            fallback_models=parse_models(parts[9]),
+            status=parts[10],
         )
     except (IndexError, ValueError):
         return None
 
 
+def optional_field_aligned(old: Optional[Any], new: Optional[Any]) -> bool:
+    return old is None or old == new
+
+
 def records_aligned(old: Record, new: Record) -> bool:
     return (
         old.input_tokens == new.input_tokens
+        and optional_field_aligned(old.cached_input_tokens, new.cached_input_tokens)
         and old.output_tokens == new.output_tokens
+        and optional_field_aligned(old.reasoning_output_tokens, new.reasoning_output_tokens)
         and old.total_tokens == new.total_tokens
         and cost_equal(old.cost_usd, new.cost_usd)
+        and optional_field_aligned(old.models, new.models)
+        and optional_field_aligned(old.fallback_models, new.fallback_models)
     )
 
 
@@ -156,11 +201,16 @@ def read_month_file(path: Path) -> Tuple[List[str], Dict[str, Record], Dict[str,
     if not path.exists():
         path.write_text("\n".join(HEADER) + "\n", encoding="utf-8")
     lines = path.read_text(encoding="utf-8").splitlines()
+    if len(lines) < 2:
+        lines = HEADER[:]
+    else:
+        lines[0:2] = HEADER
     trusted: Dict[str, Record] = {}
     indexes: Dict[str, int] = {}
     for index, line in enumerate(lines):
         record = parse_token_line(line)
         if record and record.status != "CONFLICT":
+            lines[index] = token_line(record, record.status)
             trusted[record.date] = record
             indexes[record.date] = index
     return lines, trusted, indexes

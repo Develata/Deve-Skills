@@ -46,7 +46,7 @@ scripts/data/YYYYMM.md
 Each daily log uses this row format:
 
 ```markdown
-| Date | InputTokens | OutputTokens | TotalTokens | CostUSD | Status |
+| Date | InputTokens | CachedInputTokens | OutputTokens | ReasoningOutputTokens | TotalTokens | CostUSD | Models | FallbackModels | Status |
 ```
 
 ## Calculate Monthly Cost
@@ -73,7 +73,7 @@ scripts/CostUSD.md
 
 Treat `scripts/data/YYYYMM.md` as the daily audit log and `scripts/CostUSD.md` as the monthly summary. `scripts/.gitignore` excludes both generated output paths from Git.
 
-`collect` updates an existing trusted row only after finding `AlignWindow` consecutive matching days. A day matches when `InputTokens`, `OutputTokens`, `TotalTokens`, and `CostUSD` all match; `CostUSD` equality uses a `1e-6` tolerance.
+`collect` updates an existing trusted row only after finding `AlignWindow` consecutive matching days. A day matches when `InputTokens`, `CachedInputTokens`, `OutputTokens`, `ReasoningOutputTokens`, `TotalTokens`, `CostUSD`, `Models`, and `FallbackModels` all match; `CostUSD` equality uses a `1e-6` tolerance.
 
 Interpret statuses as follows:
 
