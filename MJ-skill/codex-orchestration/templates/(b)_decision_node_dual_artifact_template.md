@@ -14,7 +14,7 @@ This template scaffolds a (b) decision-node dual-review artifact per:
 - (a) reviews a *new* plan / contract / framing decision before its first run.
 - (b) reviews a *path-switch / rejection / overruling* of a prior dual-passed
   plan: e.g. user wants to flip §A to path B, kill experiment X, waive a
-  pre-registered gate, or treat a prior verdict as superseded.
+  previously-locked design gate, or treat a prior verdict as superseded.
 
 PRE-WRITING CHECKLIST
 - [ ] Codex (reviewer) has independently read the prior dual-passed plan +

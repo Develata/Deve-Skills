@@ -1,9 +1,9 @@
 ---
 name: write-research-readout
-description: Produce presentation-grade markdown readouts for the Research1 (BYSJ Path B PINN / LEAP-1A QAR / D-scope dataset) workspace. Output is formula-first, symbol-tabled, artifact-cited prose with side-by-side independent-reproduction columns, axis-structured amendments, and ASCII timelines — never function-name dumps or code blocks for what should be math. Trigger on requests like "write readout / write report / progress update / group meeting deck / 写汇报 / 写组会 / 整理成 md / 出 readout / 出 report / 进度汇报 / presentation / deck 内容 / 给老师讲 / 写一份能讲的 md", or whenever the user wants experiment results, contract changes, or research progress consolidated into a markdown file suitable for slides/talk script.
+description: Produce presentation-grade markdown readouts for a research workspace. Output is formula-first, symbol-tabled, artifact-cited prose with side-by-side independent-reproduction columns, axis-structured amendments, and ASCII timelines — never function-name dumps or code blocks for what should be math. Trigger on requests like "write readout / write report / progress update / group meeting deck / 写汇报 / 写组会 / 整理成 md / 出 readout / 出 report / 进度汇报 / presentation / deck 内容 / 给老师讲 / 写一份能讲的 md", or whenever the user wants experiment results, contract changes, or research progress consolidated into a markdown file suitable for slides/talk script.
 ---
 
-# Research1 Reportable Readout — Authoring Protocol
+# Research Readout — Authoring Protocol
 
 > **Note on language**: this skill's prose is English for international readability, but the actual readout deliverables typically target a Chinese-speaking academic audience (advisor / group meeting / 老师汇报). The fenced markdown templates below show example Chinese phrasing — when writing an actual readout, mirror the audience's language. The structural rules (F1–F13) apply regardless of language.
 
@@ -32,7 +32,7 @@ In this workspace the user's deliverable for 汇报 / 组会 / advisor review is
 
 ## Project-frame reminder
 
-Per active feedback memory `feedback_scope_paper_to_experiment.md` (2026-04-26), this project is in **experiment-optimization** mode. Readouts default to four-step ordering for Track B results:
+Per active feedback memory `feedback_scope_paper_to_experiment.md` (2026-04-26), this project is in **experiment-optimization** mode. Readouts default to four-step ordering for results:
 
 1. **Closure** — what direction can we now stop investing in?
 2. **Working hypothesis update** — does this strengthen / weaken §5.2.4 reference-semantics divergence?
@@ -200,7 +200,7 @@ For multi-day timelines and sequential work plans, use ASCII arrows in a fenced 
 2026-04-23  v2+ deck 汇报 (ρ=+0.326)
             ↓ thesis Ch.5 reframing that evening
 2026-04-26  framing decision aide → Data Descriptor route
-            D-scope v1 contract FROZEN → impl STOP at pilot gate
+            dataset v1 contract FROZEN → impl STOP at pilot gate
             (Defect #1 H6 impossible + Defect #2 unit-scrambling)
 2026-04-27  v2 → v2.1 → v2.2 → v2.3 (3 rounds (a) review) FROZEN
             v3 DRAFT → v3 (a) round-1 BLOCKING (Axis 5 added)

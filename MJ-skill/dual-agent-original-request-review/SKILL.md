@@ -15,7 +15,7 @@ Dual-agent mode is a **boundary protocol**. Hardness lives in the harness `UserP
 
 The three boundaries that the harness hook gates as hard:
 
-- **(a) Requirement boundary**: major direction shift, cross-stage alignment, or overturning a ≥3-day-old self-authored pre-reg as a load-bearing argument. → requirement-side alignment review.
+- **(a) Requirement boundary**: major direction shift, cross-stage alignment, or overturning a ≥3-day-old self-authored locked design decision as a load-bearing argument. → requirement-side alignment review.
 - **(b) Decision node**: overturning a plan premise that previously passed dual, switching paths, or rejecting an approach. → plan-prior review.
 - **(c) Post-implementation verification**: after substantive code or readout production, the reviewer independently re-runs the source-code trace and independently reproduces empirical numbers in the readout. Acceptance gate: reviewer's independent re-derivation converges on the same number / same trace conclusion before the verdict enters paper-facing context. Substitutes that don't qualify: executor's self-assessment; single-source numbers; caveats embedded in commit body; "I caught the issue myself" as a stand-in for an independent second opinion.
 
@@ -87,6 +87,50 @@ When Claude serves as reviewer, write the acceptance checklist independently bef
 ## Two-File Handoff
 
 See `codex-orchestration/SKILL.md` § 3 for the Two-File Handoff defaults (file naming, large-prompt handling, parallel dispatch threshold). The Executor / Reviewer Task Packet templates below are what goes into `/tmp/codex_task_<ID>.md`.
+
+## BRIEF §0 DR check (added 2026-05-22)
+
+Every cowork BRIEF (`_BRIEF_FROM_CLAUDE.md` or equivalent) must open with §0 DR-check line **immediately after the front-matter metadata block**:
+
+`**DR check**: <yes|no|maybe|defer>; trigger=<short>; action=<commissioned|already available|not needed|user needed>; evidence=<DR path or reason>.`
+
+This row is VISIBLE to the reviewer (codex / second agent), NOT a Claude-side meta. Showing it does NOT bias the substantive lean because DR-check is a meta-decision, not the cowork question itself.
+
+### When DR=yes
+
+- Spec design for a new sprint phase or sub-phase (e.g. D1/D2/D5 family, Component design)
+- Cross-discipline concept borrowing (clinical→PHM, ML→aerospace, etc.)
+- P0 production issue exposing a spec gap (today's NaN-robust cowork)
+- Novelty defense (paper contribution claim)
+- Paper-grade metric / report / threshold design
+
+### When DR=no (opt-out)
+
+- Mechanical refactor / rename / typo / formatting
+- Code review of already-spec-locked implementation (spec-fidelity check, not redesign)
+- Status / readout cowork (no decision)
+- Workflow / governance topic (e.g. this rule itself, hook design, dispatch wrapper)
+- Sprint boundary commit cowork where the methodology was already DR-anchored
+- Trivial bug fix on a non-methodology surface
+
+### DR=maybe / defer
+
+Surface the trade-off in the cowork verdict so user can adjudicate. Default if uncertain: write "maybe; need user confirm" and proceed with the substantive lean — do NOT block.
+
+### Project-local hook (if enabled)
+
+Project may install `scripts/hooks/dr_trigger_advisory.sh` (PreToolUse on Write/Edit for cowork BRIEF paths) that flags BRIEFs lacking a §0 DR check line. The hook is warn-only and honors `<!-- DR_TRIGGER_OK_FILE: <reason> -->` file-scope markers.
+
+### Calibration history
+
+| Sprint moment | DR commissioned on time? |
+|---|---|
+| S2.1 feature engineering | yes (user-initiated) |
+| S2.3 model layer | yes (user-initiated) |
+| D5 ingest (Innovation 2 + 3) | yes (user-initiated) |
+| **D5.1.5 NaN-robust** | barely (Claude raised AFTER writing BRIEF; trigger was P0 production discovery) |
+
+The §0 DR-check requirement was introduced after the D5.1.5 calibration showed the "Claude + user both forget" failure mode.
 
 ## Verification Discipline
 

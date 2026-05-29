@@ -76,7 +76,7 @@ grep -oE '"reasoning_effort":"[a-z]+"' <rollout.jsonl> | head -1
 model=gpt-5.5
 cli_version=0.125.0
 effort=xhigh
-session_path=/Users/charles/.codex/sessions/2026/04/29/rollout-20260429T172949Z-019dd892-c24d-7321-9820-09d7ecf63e41.jsonl
+session_path=~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-<session-id>.jsonl
 session_first_ts=2026-04-29T17:29:49Z
 ```
 Verbatim from helper stdout. `session_path` disambiguates which `CODEX_HOME` and which exact JSONL.
@@ -114,6 +114,7 @@ Default role mapping by task type:
 
 ## 3. Call Efficiency Rules
 
+- **Probe before dispatch (mandatory for wrapper)**: any `dispatch_codex.sh` invocation requires a CronCreate probe per `codex-dispatch-watchdog` before the wrapper runs (project PreToolUse hook enforces; sentinel mtime ≤ 270s required with `*/3 * * * *` cron, updated 2026-05-19). Inline `codex exec "<short>"` returning in seconds is exempt — stall is visible.
 - **Two-file handoff for non-trivial tasks**: write the user's recent messages to `/tmp/codex_user_context_<ID>.md` and Claude's instructions to `/tmp/codex_task_<ID>.md`, then `codex exec ... < /tmp/codex_task_<ID>.md` (or have the prompt instruct codex to read both files). Keeps Claude's conversation context small and separates raw user intent from Claude's framing. CLI has no MCP-style 8 KB transport limit, but disk handoff still preserves auditability and lets you cite the exact prompt later.
 - **Pass `--full-auto`** (or `-c approval_policy=never`) for trusted projects to avoid interactive prompts. Equivalent of MCP `approval-policy=never`. Without it, codex may prompt for shell commands and block autonomous execution.
 - **Prefer `-s read-only`** for analysis/inspection tasks. Use `workspace-write` only when the task actually edits files.
@@ -352,9 +353,9 @@ Minimum fields:
 - `project_use` (specific to claim / baseline / method)
 - `not_for` (scenarios where extrapolation would be wrong)
 
-Locations:
-- Track B: `docs/10_diagnosis/literature_track_b/literature_manifest.json`
-- Fault injection: `docs/10_diagnosis/literature_fault_injection/literature_manifest.json`
+Locations (example layout):
+- Per research track: `docs/literature/<track>/literature_manifest.json`
+- Per fault-injection topic: `docs/literature/fault_injection/literature_manifest.json`
 
 ### Anti-misclassification defaults
 

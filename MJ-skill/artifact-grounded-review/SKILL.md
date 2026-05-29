@@ -1,13 +1,29 @@
 ---
 name: artifact-grounded-review
-description: Enforces that both Claude and Codex must read actual code and result artifacts before any dual analysis — not just scoring, but any collaborative analytical task.
+description: Enforces that Claude (and Codex when applicable) must read actual code and artifacts before any claim — covers both REVIEW tasks (dual analysis) and AUTHORING tasks (writing briefs / specs that reference code state).
 ---
 
-# Artifact-Grounded Dual Analysis Protocol
+# Artifact-Grounded Authoring + Dual-Analysis Protocol
 
 ## Scope
 
-This protocol applies to **all dual-agent analytical tasks**, not just scoring:
+This protocol applies to **two complementary task families**:
+
+### A. Authoring + user-facing analysis (brief / spec / RFC / analysis answer / explanation / verdict / progress update)
+
+Any user-facing or artifact-persisted text that makes a claim about current code / data / manifest / artifact state:
+- "Module X currently does Y" / "no code change to Z" / "builder is no-code-change"
+- Threshold references ("existing gate is p > 0.01")
+- API / schema assumptions ("Component-C outputs envelope with 6 fields")
+- Manifest distribution assumptions ("180 unique sources" / "~9k windows")
+- Call-order / data-flow assumptions ("generator emits length-bounded trajectory")
+- **User analysis questions** ("how does this work" / "what's the difference between v1 and v2" / "is X using Y" / "where is Z defined")
+- **Progress reports / verdicts** ("we have N units" / "current run produced X" / "the last commit did Y")
+
+All of the above trigger **Rule 0** below.
+
+### B. Dual-analytical tasks (review / RCA / interpretation)
+
 - Dual review / peer review / evaluation
 - Research quality assessment
 - Bug investigation and root-cause analysis
@@ -22,6 +38,34 @@ When Claude feeds Codex a pre-digested summary instead of raw file paths, two fa
 2. **Neither agent truly understands the code** — both work from abstractions, missing implementation details, edge cases, and gaps between claims and artifacts.
 
 ## Core Rules
+
+### Rule 0: Claim-time artifact ground (NEW 2026-05-19; broadened 2026-05-19)
+
+**Trigger**: any user-facing claim OR artifact-persisted text making an assertion about current code / data / manifest / artifact state. Covers brief / spec / RFC AND analysis-question answers / progress reports / verdict explanations.
+
+**Principle**: Before saying or writing "code is X" / "no code change to Y" / quoting a threshold / API contract / manifest fact / runtime behavior, the author MUST Read the relevant file(s) and cite file:line. Text-level reasoning over remembered facts (including the author's own prior text within this session) is insufficient.
+
+**Why**: text-level reasoning systematically misses generator call order, manifest cardinality drift, API schema details, silent threshold shifts, and post-commit state changes. In review tasks codex catches these as "blocking spec bugs"; in direct user analysis, unverified claims become false answers the user acts on. Both failure modes were preventable at claim time.
+
+**How to apply** (during drafting / answering):
+1. Every time the response asserts a code/data fact, immediately Read the cited file and replace the assertion with file:line citation
+2. Claims that cannot be verified at claim time get tagged `[TODO-VERIFY: <file>]` inline (briefs) OR explicitly disclosed as "from memory, may be stale" (user analysis) — they do NOT survive to finalized text without Read+cite
+3. Re-using own prior text (e.g., v2 → v3 brief; or "as I said earlier") does NOT count as verification — re-Read every cited file
+4. For user analysis questions where Read overhead matters, batch Reads at start of analysis BEFORE writing the response, not after
+5. **Execution-time premise check** (added 2026-05-29, Claude+Codex cowork): when the task is to implement / escalate / delete / mechanically apply a *prior verdict* — from Claude, Codex, a header/title-level scan, an old brief, or any "already decided" authority — treat that verdict as a **hypothesis, not evidence**. Read the underlying artifact / log / content the verdict depends on before acting; if ground truth contradicts the premise, revise or stop rather than execute the stale verdict. **Fires on** durable/destructive actions driven by a prior verdict (hook escalation, rule growth, deletion/slimming, LOCK or amendment wording, report verdicts, "X already said so, apply X"). **Does NOT fire on** premise-free mechanical tasks (formatting, running a requested command, a user-specified single-line edit), facts already Read this turn and unchanged, or merely citing a LOCKED anchor.
+
+**Trigger calibration (RCA 2026-05-29, Claude+Codex cowork)**: Rule 0 fires by fact type and artifact / user-facing consequence, **not by felt uncertainty**. High-confidence convention facts (signatures, CLI flags, config keys, exact quotes, numbers) are still Read+cite facts when they enter durable text or a final answer; "I'm sure" is a reason to open the source, not to skip it. (You are *most* confident on convention-bound facts — exactly where a project-specific tail you cannot know hides.) Scope = Rule 0's Trigger + Counter-example list above; this is not a new trigger, it removes "I'm certain" as a valid reason to skip an existing one.
+
+**Calibration example (authoring)**: v2 brief said "drop `_assign_envelopes_length_aware()` from builder is the only change". Author should have Read `r3_cohort_builder.py:292-305` to discover the function runs AFTER full-100 HP10 generation, meaning v2's "Group A 1:1 inheritance" requires reversing the entire generator call order. Codex round-2 caught this with read-only re-derivation showing 20/144 units would violate EOL constraint.
+
+**Calibration example (user analysis)**: user asks "现在 Component-C 输出的 envelope schema 是什么". Wrong: answer from memory of P2 v2 brief text. Right: Read `component_c_io.py:119-122` first, then cite the actual schema with file:line.
+
+**Counter-example (where this rule does NOT apply)**:
+- Pure strategic / narrative decisions ("which DA tier", "which baseline model") — these go through lit + cowork, not code-Read
+- Stable architectural facts already in `CLAUDE.md` / `AGENTS.md` LOCKED anchors — by-construction verified at lock time (but cite the anchor)
+- Cross-references to peer-reviewed lit anchors — need WebSearch / lit-grounded skill, not code-Read
+- Pure conversational / clarifying meta-questions ("did you mean X?", "let me confirm scope")
+- Facts already established in current conversation turn via Read tool output (no need to re-Read in same turn)
 
 ### Rule 1: Read before concluding
 
@@ -114,6 +158,60 @@ Before diagnosing or judging:
 2. Trace the actual data flow, not the documented intent.
 3. Run or inspect test outputs if available.
 4. Check git history for context on why code looks the way it does.
+
+### Error-report cowork (≤3 round template + 1 arbitration)
+
+For run-level errors in dispatched experiments. Composes Rules 1-4 above + `dual-agent-original-request-review` § Conflict Resolution.
+
+**Trigger**: codex dispatch FAIL / `.stall` marker / artifact missing / acceptance gate FAIL / metric outside expected band / `DISPATCH_STATUS=stalled`.
+
+**Round 1 — Parallel independent RCA**
+
+Both parties read failing artifacts directly (Rule 1); each writes its own `_rca_<side>.md` BEFORE reading the other (Rule 3). Each RCA must include:
+
+| Field | Content |
+|---|---|
+| Root cause | One-sentence smallest causal claim |
+| Evidence | path:line / artifact:key (Rule 4) |
+| Class | code-bug / data-corruption / spec-drift / dep-change / seed / env / external |
+| Cost | Minutes-to-hours remediation estimate |
+| Confidence | HIGH / MEDIUM / LOW |
+
+**Round 2 — Convergence** (verdict labels per `websearch-cowork` § Stage 4):
+
+- **STRONG** (same class + same cause) → write `_RCA_CONVERGE.md` + remediation plan, exit cowork
+- **PARTIAL** (same class, different cause) → Round 3 narrow
+- **CLAUDE_ONLY** / **CODEX_ONLY** (one side missed evidence) → other side reads the missing artifact + updates RCA
+- **DISJOINT** (different class) → Round 3 broad re-investigation
+
+**Round 3 — Focused re-investigation on disputed axis only**
+
+Both sides re-read the single artifact / line range that disambiguates the dispute. Do NOT expand scope.
+
+**Round 4 (arbitration) — Claude decides 1-shot**
+
+Per autonomous-mode governance (≤3 cowork rounds hard cap + Claude arbitration on convergence failure):
+
+- Claude reads both `_rca_*.md` outputs side by side + any additional evidence cited by either side
+- Writes `_RCA_ARBITRATION.md` with final verdict + reasoning + evidence cited
+- This binds — exit cowork
+
+**Deliverables** (one per error event):
+
+```
+<run_dir>/_rca_claude.md
+<run_dir>/_rca_codex.md
+<run_dir>/_RCA_CONVERGE.md     (if R1/R2/R3 converges)
+<run_dir>/_RCA_ARBITRATION.md  (if Round 4 arbitration fires)
+<run_dir>/_REMEDIATION_PLAN.md (always, after verdict)
+```
+
+**Anti-patterns**:
+
+- Skipping artifact read because "we know this codebase" — Rule 1 violation
+- Resolving disagreement via authority ("Claude is usually right") instead of evidence read
+- Treating STALE artifact as canonical (run § Artifact Staleness Check before RCA)
+- Letting cost-of-fix or confidence steer verdict choice (verdict = evidence-derived only)
 
 ## Convergence rules (for scored evaluations)
 

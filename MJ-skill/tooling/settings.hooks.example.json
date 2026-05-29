@@ -1,0 +1,15 @@
+{
+  "_comment": "Merge this into your project .claude/settings.json. Wires the three Codex dispatch guards as PreToolUse:Bash hooks. Adjust the script paths to where you placed tooling/hooks/.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "bash scripts/hooks/codex_exec_guard.sh" },
+          { "type": "command", "command": "bash scripts/hooks/codex_probe_guard.sh" },
+          { "type": "command", "command": "bash scripts/hooks/codex_dispatch_pattern_guard.sh" }
+        ]
+      }
+    ]
+  }
+}

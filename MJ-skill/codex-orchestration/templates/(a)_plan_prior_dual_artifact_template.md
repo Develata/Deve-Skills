@@ -35,7 +35,7 @@ REPLACE every `<placeholder>` and remove this comment block before commit.
 model=gpt-5.5
 cli_version=0.125.0
 effort=xhigh
-session_path=/Users/charles/.codex/sessions/2026/04/27/rollout-2026-04-27T...jsonl
+session_path=~/.codex/sessions/<YYYY>/<MM>/<DD>/rollout-<session-id>.jsonl
 session_first_ts=2026-04-27T...Z>
 ```
 
